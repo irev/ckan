@@ -30,7 +30,7 @@ def deprecated(message='', since=None):
                             % (fn.__name__, fn.__module__))
 
         def wrapped(*args, **kw):
-            since_msg = f'since CKAN v{since}' if since else ''
+            since_msg = f'since CKAN v{since} ' if since else ''
             log.warning('Function %s() in module %s has been deprecated %s'
                         'and will be removed in a later release of ckan. %s'
                         % (fn.__name__, fn.__module__, since_msg, message))

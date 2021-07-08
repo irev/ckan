@@ -1,4 +1,4 @@
-# encoding: utf-8
+# -*- coding: utf-8 -*-
 
 import datetime
 import re
@@ -161,7 +161,7 @@ class TestPackageShow(object):
                     u"vocabulary_id": None,
                 }
             ],
-            u"title": u"Test Dataset",
+            u"title": dataset2["title"],
             u"type": u"dataset",
             u"url": None,
             u"version": None,
@@ -476,7 +476,7 @@ class TestGroupList(object):
             helpers.call_action("group_list", offset="-2")
 
 
-@pytest.mark.usefixtures("clean_db", "with_request_context")
+@pytest.mark.usefixtures("clean_db", "clean_index", "with_request_context")
 class TestGroupShow(object):
     def test_group_show(self):
         group = factories.Group(user=factories.User())
@@ -501,7 +501,6 @@ class TestGroupShow(object):
             helpers.call_action("group_show", id=org["id"])
 
     def test_group_show_packages_returned(self):
-
         user_name = helpers.call_action("get_site_user")["name"]
 
         group = factories.Group(user=factories.User())
@@ -2891,7 +2890,7 @@ class TestActivityShow(object):
             < 10
         )
         assert activity_shown["object_id"] == dataset["id"]
-        assert activity_shown["data"] == {"package": {"title": "Test Dataset"}}
+        assert activity_shown["data"] == {"package": {"title": dataset["title"]}}
         assert activity_shown["activity_type"] == u"new package"
 
     def test_simple_with_data(self):

@@ -9,16 +9,14 @@ import ckan.lib.jobs as jobs
 import ckan.lib.api_token as api_token
 import ckan.logic as logic
 import ckan.model as model
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestDelete:
-    def test_resource_delete(self):
-        user = factories.User()
-        sysadmin = factories.Sysadmin()
-        resource = factories.Resource(user=user)
+    def test_resource_delete(self, user, sysadmin, resource_factory):
+
+        resource = resource_factory(user=user)
         context = {}
         params = {"id": resource["id"]}
 
@@ -36,13 +34,9 @@ class TestDelete:
     @pytest.mark.ckan_config('ckan.auth.allow_dataset_collaborators', True)
     @pytest.mark.ckan_config('ckan.auth.allow_admin_collaborators', True)
     @pytest.mark.parametrize('role', ['admin', 'editor'])
-    def test_collaborators_can_delete_resources(self, role):
-
-        org1 = factories.Organization()
-        dataset = factories.Dataset(owner_org=org1['id'])
-        resource = factories.Resource(package_id=dataset['id'])
-
-        user = factories.User()
+    def test_collaborators_can_delete_resources(self, role, user, organization, package_factory, resource_factory):
+        dataset = package_factory(owner_org=organization['id'])
+        resource = resource_factory(package_id=dataset['id'])
 
         helpers.call_action(
             'package_collaborator_create',
@@ -63,8 +57,7 @@ class TestDelete:
 @pytest.mark.ckan_config("ckan.plugins", "image_view")
 @pytest.mark.usefixtures("clean_db", "with_plugins", "with_request_context")
 class TestDeleteResourceViews(object):
-    def test_resource_view_delete(self):
-        resource_view = factories.ResourceView()
+    def test_resource_view_delete(self, resource_view):
 
         params = {"id": resource_view["id"]}
 
@@ -92,15 +85,18 @@ class TestDeleteResourceViews(object):
             helpers.call_action("resource_view_delete", context={}, **params)
 
 
-@pytest.mark.ckan_config("ckan.plugins", "image_view recline_view")
 @pytest.mark.usefixtures("clean_db", "with_plugins")
+@pytest.mark.ckan_config("ckan.plugins", "image_view recline_view")
 class TestClearResourceViews(object):
-    def test_resource_view_clear(self):
-        factories.ResourceView(view_type="image_view")
-        factories.ResourceView(view_type="image_view")
+    def test_resource_view_clear(self, resource_view_factory, resource):
+        count = model.Session.query(model.ResourceView).count()
+        assert count == 0
 
-        factories.ResourceView(view_type="recline_view")
-        factories.ResourceView(view_type="recline_view")
+        resource_view_factory(view_type="image_view", resource_id=resource["id"])
+        resource_view_factory(view_type="image_view", resource_id=resource["id"])
+
+        resource_view_factory(view_type="recline_view", resource_id=resource["id"])
+        resource_view_factory(view_type="recline_view", resource_id=resource["id"])
 
         count = model.Session.query(model.ResourceView).count()
 
@@ -112,12 +108,13 @@ class TestClearResourceViews(object):
 
         assert count == 0
 
-    def test_resource_view_clear_with_types(self):
-        factories.ResourceView(view_type="image_view")
-        factories.ResourceView(view_type="image_view")
+    def test_resource_view_clear_with_types(self, resource_view_factory, resource):
 
-        factories.ResourceView(view_type="recline_view")
-        factories.ResourceView(view_type="recline_view")
+        resource_view_factory(view_type="image_view", resource_id=resource["id"])
+        resource_view_factory(view_type="image_view", resource_id=resource["id"])
+
+        resource_view_factory(view_type="recline_view", resource_id=resource["id"])
+        resource_view_factory(view_type="recline_view", resource_id=resource["id"])
 
         count = model.Session.query(model.ResourceView).count()
 
@@ -149,9 +146,8 @@ class TestDeleteTags(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestGroupPurge(object):
-    def test_a_non_sysadmin_cant_purge_group(self):
-        user = factories.User()
-        group = factories.Group(user=user)
+    def test_a_non_sysadmin_cant_purge_group(self, user, group_factory):
+        group = group_factory(user=user)
 
         with pytest.raises(logic.NotAuthorized):
             helpers.call_action(
@@ -160,24 +156,21 @@ class TestGroupPurge(object):
                 id=group["name"],
             )
 
-    def test_purged_group_does_not_show(self):
-        group = factories.Group()
+    def test_purged_group_does_not_show(self, group):
 
         helpers.call_action("group_purge", id=group["name"])
 
         with pytest.raises(logic.NotFound):
             helpers.call_action("group_show", context={}, id=group["name"])
 
-    def test_purged_group_is_not_listed(self):
-        group = factories.Group()
+    def test_purged_group_is_not_listed(self, group):
 
         helpers.call_action("group_purge", id=group["name"])
 
         assert helpers.call_action("group_list", context={}) == []
 
-    def test_dataset_in_a_purged_group_no_longer_shows_that_group(self):
-        group = factories.Group()
-        dataset = factories.Dataset(groups=[{"name": group["name"]}])
+    def test_dataset_in_a_purged_group_no_longer_shows_that_group(self, group, package_factory):
+        dataset = package_factory(groups=[{"name": group["name"]}])
 
         helpers.call_action("group_purge", id=group["name"])
 
@@ -187,9 +180,8 @@ class TestGroupPurge(object):
         assert dataset_shown["groups"] == []
 
     @pytest.mark.usefixtures("clean_index")
-    def test_purged_group_is_not_in_search_results_for_its_ex_dataset(self):
-        group = factories.Group()
-        dataset = factories.Dataset(groups=[{"name": group["name"]}])
+    def test_purged_group_is_not_in_search_results_for_its_ex_dataset(self, group, package_factory):
+        dataset = package_factory(groups=[{"name": group["name"]}])
 
         def get_search_result_groups():
             results = helpers.call_action(
@@ -203,17 +195,16 @@ class TestGroupPurge(object):
 
         assert get_search_result_groups() == []
 
-    def test_purged_group_leaves_no_trace_in_the_model(self):
-        factories.Group(name="parent")
-        user = factories.User()
-        group1 = factories.Group(
+    def test_purged_group_leaves_no_trace_in_the_model(self, user, package_factory, group_factory):
+        group_factory(name="parent")
+        group1 = group_factory(
             name="group1",
             extras=[{"key": "key1", "value": "val1"}],
             users=[{"name": user["name"]}],
             groups=[{"name": "parent"}],
         )
-        factories.Dataset(name="ds", groups=[{"name": "group1"}])
-        factories.Group(name="child", groups=[{"name": "group1"}])
+        package_factory(name="ds", groups=[{"name": "group1"}])
+        group_factory(name="child", groups=[{"name": "group1"}])
 
         helpers.call_action("group_purge", id=group1["name"])
 
@@ -243,9 +234,8 @@ class TestGroupPurge(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestOrganizationPurge(object):
-    def test_a_non_sysadmin_cant_purge_org(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
+    def test_a_non_sysadmin_cant_purge_org(self, user, organization_factory):
+        org = organization_factory(user=user)
 
         with pytest.raises(logic.NotAuthorized):
             helpers.call_action(
@@ -254,28 +244,25 @@ class TestOrganizationPurge(object):
                 id=org["name"],
             )
 
-    def test_purged_org_does_not_show(self):
-        org = factories.Organization()
+    def test_purged_org_does_not_show(self, organization):
 
-        helpers.call_action("organization_purge", id=org["name"])
+        helpers.call_action("organization_purge", id=organization["name"])
 
         with pytest.raises(logic.NotFound):
             helpers.call_action(
-                "organization_show", context={}, id=org["name"]
+                "organization_show", context={}, id=organization["name"]
             )
 
-    def test_purged_org_is_not_listed(self):
-        org = factories.Organization()
+    def test_purged_org_is_not_listed(self, organization):
 
-        helpers.call_action("organization_purge", id=org["name"])
+        helpers.call_action("organization_purge", id=organization["name"])
 
         assert helpers.call_action("organization_list", context={}) == []
 
-    def test_dataset_in_a_purged_org_no_longer_shows_that_org(self):
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org["id"])
+    def test_dataset_in_a_purged_org_no_longer_shows_that_org(self, organization, package_factory):
+        dataset = package_factory(owner_org=organization["id"])
 
-        helpers.call_action("organization_purge", id=org["name"])
+        helpers.call_action("organization_purge", id=organization["name"])
 
         dataset_shown = helpers.call_action(
             "package_show", context={}, id=dataset["id"]
@@ -283,9 +270,8 @@ class TestOrganizationPurge(object):
         assert dataset_shown["owner_org"] is None
 
     @pytest.mark.usefixtures("clean_index")
-    def test_purged_org_is_not_in_search_results_for_its_ex_dataset(self):
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org["id"])
+    def test_purged_org_is_not_in_search_results_for_its_ex_dataset(self, organization, package_factory):
+        dataset = package_factory(owner_org=organization["id"])
 
         def get_search_result_owner_org():
             results = helpers.call_action(
@@ -293,23 +279,22 @@ class TestOrganizationPurge(object):
             )["results"]
             return results[0]["owner_org"]
 
-        assert get_search_result_owner_org() == org["id"]
+        assert get_search_result_owner_org() == organization["id"]
 
-        helpers.call_action("organization_purge", id=org["name"])
+        helpers.call_action("organization_purge", id=organization["name"])
 
         assert get_search_result_owner_org() is None
 
-    def test_purged_organization_leaves_no_trace_in_the_model(self):
-        factories.Organization(name="parent")
-        user = factories.User()
-        org1 = factories.Organization(
+    def test_purged_organization_leaves_no_trace_in_the_model(self, user, package_factory, organization_factory):
+        organization_factory(name="parent")
+        org1 = organization_factory(
             name="org1",
             extras=[{"key": "key1", "value": "val1"}],
             users=[{"name": user["name"]}],
             groups=[{"name": "parent"}],
         )
-        factories.Dataset(name="ds", owner_org=org1["id"])
-        factories.Organization(name="child", groups=[{"name": "org1"}])
+        package_factory(name="ds", owner_org=org1["id"])
+        organization_factory(name="child", groups=[{"name": "org1"}])
 
         helpers.call_action("organization_purge", id=org1["name"])
 
@@ -340,9 +325,8 @@ class TestOrganizationPurge(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestDatasetPurge(object):
-    def test_a_non_sysadmin_cant_purge_dataset(self):
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+    def test_a_non_sysadmin_cant_purge_dataset(self, user, package_factory):
+        dataset = package_factory(user=user)
 
         with pytest.raises(logic.NotAuthorized):
             helpers.call_action(
@@ -351,26 +335,24 @@ class TestDatasetPurge(object):
                 id=dataset["name"],
             )
 
-    def test_purged_dataset_does_not_show(self):
-        dataset = factories.Dataset()
+    def test_purged_dataset_does_not_show(self, package):
 
         helpers.call_action(
-            "dataset_purge", context={"ignore_auth": True}, id=dataset["name"]
+            "dataset_purge", context={"ignore_auth": True}, id=package["name"]
         )
 
         with pytest.raises(logic.NotFound):
-            helpers.call_action("package_show", context={}, id=dataset["name"])
+            helpers.call_action("package_show", context={}, id=package["name"])
 
-    def test_purged_dataset_is_not_listed(self):
-        dataset = factories.Dataset()
+    def test_purged_dataset_is_not_listed(self, package):
 
-        helpers.call_action("dataset_purge", id=dataset["name"])
+        helpers.call_action("dataset_purge", id=package["name"])
 
         assert helpers.call_action("package_list", context={}) == []
 
-    def test_group_no_longer_shows_its_purged_dataset(self):
-        group = factories.Group()
-        dataset = factories.Dataset(groups=[{"name": group["name"]}])
+    def test_group_no_longer_shows_its_purged_dataset(self, group, package_factory):
+
+        dataset = package_factory(groups=[{"name": group["name"]}])
 
         helpers.call_action("dataset_purge", id=dataset["name"])
 
@@ -380,30 +362,28 @@ class TestDatasetPurge(object):
         assert dataset_shown["packages"] == []
 
     @pytest.mark.usefixtures("clean_index", "with_plugins")
-    def test_purged_dataset_is_not_in_search_results(self):
-        dataset = factories.Dataset()
+    def test_purged_dataset_is_not_in_search_results(self, package):
 
         def get_search_results():
             results = helpers.call_action(
-                "package_search", q=dataset["title"]
+                "package_search", q=package["title"]
             )["results"]
             return [d["name"] for d in results]
 
-        assert get_search_results() == [dataset["name"]]
-        helpers.call_action("dataset_purge", id=dataset["name"])
+        assert get_search_results() == [package["name"]]
+        helpers.call_action("dataset_purge", id=package["name"])
 
         assert get_search_results() == []
 
-    def test_purged_dataset_leaves_no_trace_in_the_model(self):
-        factories.Group(name="group1")
-        org = factories.Organization()
-        dataset = factories.Dataset(
+    def test_purged_dataset_leaves_no_trace_in_the_model(self, organization, package_factory, group_factory, resource_factory):
+        group_factory(name="group1")
+        dataset = package_factory(
             tags=[{"name": "tag1"}],
             groups=[{"name": "group1"}],
-            owner_org=org["id"],
+            owner_org=organization["id"],
             extras=[{"key": "testkey", "value": "testvalue"}],
         )
-        factories.Resource(package_id=dataset["id"])
+        resource_factory(package_id=dataset["id"])
 
         helpers.call_action(
             "dataset_purge", context={"ignore_auth": True}, id=dataset["name"]
@@ -425,12 +405,12 @@ class TestDatasetPurge(object):
                 (m.table_name, m.group.name)
                 for m in model.Session.query(model.Member).join(model.Group)
             ]
-        ) == [("user", "group1"), ("user", org["name"])]
+        ) == [("user", "group1"), ("user", organization["name"])]
 
-    def test_purged_dataset_removed_from_relationships(self):
-        child = factories.Dataset()
-        parent = factories.Dataset()
-        grandparent = factories.Dataset()
+    def test_purged_dataset_removed_from_relationships(self, package_factory):
+        child = package_factory()
+        parent = package_factory()
+        grandparent = package_factory()
 
         helpers.call_action(
             "package_relationship_create",
@@ -466,8 +446,7 @@ class TestDatasetPurge(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestUserDelete(object):
-    def test_user_delete(self):
-        user = factories.User()
+    def test_user_delete(self, user):
         context = {}
         params = {u"id": user[u"id"]}
 
@@ -484,13 +463,12 @@ class TestUserDelete(object):
         with pytest.raises(logic.NotFound):
             helpers.call_action(u"user_delete", context, **params)
 
-    def test_user_delete_removes_memberships(self):
-        user = factories.User()
-        factories.Organization(
+    def test_user_delete_removes_memberships(self, user, organization_factory, group_factory):
+        organization_factory(
             users=[{u"name": user[u"id"], u"capacity": u"admin"}]
         )
 
-        factories.Group(users=[{u"name": user[u"id"], u"capacity": u"admin"}])
+        group_factory(users=[{u"name": user[u"id"], u"capacity": u"admin"}])
 
         user_memberships = (
             model.Session.query(model.Member)
@@ -518,13 +496,12 @@ class TestUserDelete(object):
 
         assert [m.state for m in user_memberships] == [u"deleted", u"deleted"]
 
-    def test_user_delete_removes_memberships_when_using_name(self):
-        user = factories.User()
-        factories.Organization(
+    def test_user_delete_removes_memberships_when_using_name(self, user, organization_factory, group_factory):
+        organization_factory(
             users=[{u"name": user[u"id"], u"capacity": u"admin"}]
         )
 
-        factories.Group(users=[{u"name": user[u"id"], u"capacity": u"admin"}])
+        group_factory(users=[{u"name": user[u"id"], u"capacity": u"admin"}])
 
         context = {}
         params = {u"id": user[u"name"]}
@@ -543,21 +520,19 @@ class TestUserDelete(object):
         assert [m.state for m in user_memberships] == [u"deleted", u"deleted"]
 
     @pytest.mark.ckan_config(u"ckan.auth.allow_dataset_collaborators", True)
-    def test_user_delete_removes_collaborations(self):
-        user = factories.User()
-        dataset = factories.Dataset()
+    def test_user_delete_removes_collaborations(self, user, package):
         helpers.call_action(
             'package_collaborator_create',
-            id=dataset['id'], user_id=user['id'], capacity='editor')
+            id=package['id'], user_id=user['id'], capacity='editor')
 
-        assert len(helpers.call_action('package_collaborator_list', id=dataset['id'])) == 1
+        assert len(helpers.call_action('package_collaborator_list', id=package['id'])) == 1
 
         context = {}
         params = {u"id": user[u"id"]}
 
         helpers.call_action(u"user_delete", context, **params)
 
-        assert len(helpers.call_action('package_collaborator_list', id=dataset['id'])) == 0
+        assert len(helpers.call_action('package_collaborator_list', id=package['id'])) == 0
 
 
 class TestJobClear(helpers.FunctionalRQTestBase):
@@ -616,8 +591,7 @@ class TestJobCancel(helpers.FunctionalRQTestBase):
 @pytest.mark.usefixtures(u"clean_db")
 class TestApiToken(object):
 
-    def test_token_revoke(self):
-        user = factories.User()
+    def test_token_revoke(self, user):
         token = helpers.call_action(u"api_token_create", context={
             u"model": model,
             u"user": user[u"name"]
@@ -658,72 +632,62 @@ class TestApiToken(object):
 
 @pytest.mark.usefixtures("clean_db")
 @pytest.mark.ckan_config(u"ckan.auth.allow_dataset_collaborators", False)
-def test_delete_package_collaborator_when_config_disabled():
-
-    dataset = factories.Dataset()
-    user = factories.User()
+def test_delete_package_collaborator_when_config_disabled(user, package):
 
     with pytest.raises(logic.ValidationError):
         helpers.call_action(
             'package_collaborator_delete',
-            id=dataset['id'], user_id=user['id'])
+            id=package['id'], user_id=user['id'])
 
 
 @pytest.mark.usefixtures("clean_db")
 @pytest.mark.ckan_config(u"ckan.auth.allow_dataset_collaborators", True)
 class TestPackageMemberDelete(object):
 
-    def test_delete(self):
+    def test_delete(self, user, package):
 
-        dataset = factories.Dataset()
-        user = factories.User()
         capacity = 'editor'
 
         helpers.call_action(
             'package_collaborator_create',
-            id=dataset['id'], user_id=user['id'], capacity=capacity)
+            id=package['id'], user_id=user['id'], capacity=capacity)
 
         assert model.Session.query(model.PackageMember).count() == 1
 
         helpers.call_action(
             'package_collaborator_delete',
-            id=dataset['id'], user_id=user['id'])
+            id=package['id'], user_id=user['id'])
 
         assert model.Session.query(model.PackageMember).count() == 0
 
-    def test_delete_dataset_not_found(self):
+    def test_delete_dataset_not_found(self, user):
         dataset = {'id': 'xxx'}
-        user = factories.User()
 
         with pytest.raises(logic.NotFound):
             helpers.call_action(
                 'package_collaborator_delete',
                 id=dataset['id'], user_id=user['id'])
 
-    def test_delete_user_not_found(self):
-        dataset = factories.Dataset()
+    def test_delete_user_not_found(self, package):
         user = {'id': 'yyy'}
 
         with pytest.raises(logic.NotFound):
             helpers.call_action(
                 'package_collaborator_delete',
-                id=dataset['id'], user_id=user['id'])
+                id=package['id'], user_id=user['id'])
 
 
 @pytest.mark.usefixtures("clean_db")
 @pytest.mark.ckan_config(u"ckan.auth.allow_dataset_collaborators", True)
-def test_package_delete_removes_collaborations():
-
-    user = factories.User()
-    dataset = factories.Dataset()
+def test_package_delete_removes_collaborations(user, package):
     helpers.call_action(
         'package_collaborator_create',
-        id=dataset['id'], user_id=user['id'], capacity='editor')
+        id=package['id'], user_id=user['id'], capacity='editor')
 
     assert len(helpers.call_action('package_collaborator_list_for_user', id=user['id'])) == 1
 
     context = {}
-    params = {u"id": dataset[u"id"]}
+    params = {u"id": package[u"id"]}
 
     helpers.call_action(u"package_delete", context, **params)
 

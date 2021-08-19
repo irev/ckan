@@ -17,21 +17,17 @@ from ckan.lib.search.common import SearchError
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestPackageShow(object):
-    def test_package_show(self):
+    def test_package_show(self, package):
         # simple dataset, simple checks
-        dataset1 = factories.Dataset()
+        dataset2 = helpers.call_action("package_show", id=package["id"])
 
-        dataset2 = helpers.call_action("package_show", id=dataset1["id"])
-
-        assert dataset2["name"] == dataset1["name"]
+        assert dataset2["name"] == package["name"]
         missing_keys = set(("title", "groups")) - set(dataset2.keys())
         assert not missing_keys, missing_keys
 
-    def test_package_show_with_full_dataset(self):
+    def test_package_show_with_full_dataset(self, group, organization, package_factory):
         # an full dataset
-        org = factories.Organization()
-        group = factories.Group()
-        dataset1 = factories.Dataset(
+        dataset1 = package_factory(
             resources=[
                 {
                     "url": "http://example.com/image.png",
@@ -42,7 +38,7 @@ class TestPackageShow(object):
             tags=[{u"name": u"science"}],
             extras=[{u"key": u"subject", u"value": u"science"}],
             groups=[{u"id": group["id"]}],
-            owner_org=org["id"],
+            owner_org=organization["id"],
         )
         dataset2 = helpers.call_action("package_show", id=dataset1["id"])
 
@@ -92,12 +88,12 @@ class TestPackageShow(object):
             u"extras": [{u"key": u"subject", u"value": u"science"}],
             u"groups": [
                 {
-                    u"description": u"A test description for this test group.",
-                    u"display_name": u"Test Group num",
+                    u"description": group["description"],
+                    u"display_name": group["display_name"],
                     u"id": u"<SOME-UUID>",
-                    u"image_display_url": u"",
-                    u"name": u"test_group_num",
-                    u"title": u"Test Group num",
+                    u"image_display_url": group["image_display_url"],
+                    u"name": group["name"],
+                    u"title": group["title"]
                 }
             ],
             u"id": u"<SOME-UUID>",
@@ -108,20 +104,20 @@ class TestPackageShow(object):
             u"maintainer_email": None,
             u"metadata_created": u"2019-05-24T15:52:30.123456",
             u"metadata_modified": u"2019-05-24T15:52:30.123456",
-            u"name": u"test_dataset_num",
-            u"notes": u"Just another test dataset.",
+            u"name": dataset2["name"],
+            u"notes": dataset2["notes"],
             u"num_resources": 1,
             u"num_tags": 1,
             u"organization": {
                 u"approval_status": u"approved",
                 u"created": u"2019-05-24T15:52:30.123456",
-                u"description": u"Just another test organization.",
+                u"description": organization["description"],
                 u"id": u"<SOME-UUID>",
-                u"image_url": u"https://placekitten.com/g/200/100",
+                u"image_url": organization["image_url"],
                 u"is_organization": True,
-                u"name": u"test_org_num",
+                u"name": organization["name"],
                 u"state": u"active",
-                u"title": u"Test Organization",
+                u"title": organization["title"],
                 u"type": u"organization",
             },
             u"owner_org": u"<SOME-UUID>",
@@ -167,8 +163,7 @@ class TestPackageShow(object):
             u"version": None,
         }
 
-    def test_package_show_with_custom_schema(self):
-        dataset1 = factories.Dataset()
+    def test_package_show_with_custom_schema(self, package):
         from ckan.logic.schema import default_show_package_schema
 
         custom_schema = default_show_package_schema()
@@ -180,14 +175,13 @@ class TestPackageShow(object):
 
         dataset2 = helpers.call_action(
             "package_show",
-            id=dataset1["id"],
+            id=package["id"],
             context={"schema": custom_schema},
         )
 
         assert dataset2["new_field"] == "foo"
 
-    def test_package_show_with_custom_schema_return_default_schema(self):
-        dataset1 = factories.Dataset()
+    def test_package_show_with_custom_schema_return_default_schema(self, package):
         from ckan.logic.schema import default_show_package_schema
 
         custom_schema = default_show_package_schema()
@@ -199,7 +193,7 @@ class TestPackageShow(object):
 
         dataset2 = helpers.call_action(
             "package_show",
-            id=dataset1["id"],
+            id=package["id"],
             use_default_schema=True,
             context={"schema": custom_schema},
         )
@@ -209,10 +203,10 @@ class TestPackageShow(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestGroupList(object):
-    def test_group_list(self):
+    def test_group_list(self, group_factory):
 
-        group1 = factories.Group()
-        group2 = factories.Group()
+        group1 = group_factory()
+        group2 = group_factory()
 
         group_list = helpers.call_action("group_list")
 
@@ -220,15 +214,15 @@ class TestGroupList(object):
             [g["name"] for g in [group1, group2]]
         )
 
-    def test_group_list_in_presence_of_organizations(self):
+    def test_group_list_in_presence_of_organizations(self, organization_factory, group_factory):
         """
         Getting the group_list should only return groups of type 'group' (not
         organizations).
         """
-        group1 = factories.Group()
-        group2 = factories.Group()
-        factories.Organization()
-        factories.Organization()
+        group1 = group_factory()
+        group2 = group_factory()
+        organization_factory()
+        organization_factory()
 
         group_list = helpers.call_action("group_list")
 
@@ -236,11 +230,11 @@ class TestGroupList(object):
             [g["name"] for g in [group1, group2]]
         )
 
-    def test_group_list_in_presence_of_custom_group_types(self):
+    def test_group_list_in_presence_of_custom_group_types(self, group_factory):
         """Getting the group_list shouldn't return custom group types."""
-        group1 = factories.Group()
-        group2 = factories.Group()
-        factories.Group(type="custom")
+        group1 = group_factory()
+        group2 = group_factory()
+        group_factory(type="custom")
 
         group_list = helpers.call_action("group_list")
 
@@ -248,15 +242,15 @@ class TestGroupList(object):
             [g["name"] for g in [group1, group2]]
         )
 
-    def test_group_list_return_custom_group(self):
+    def test_group_list_return_custom_group(self, group_factory):
         """
         Getting the group_list with a type defined should only return
         groups of that type.
         """
-        group1 = factories.Group(type="custom")
-        group2 = factories.Group(type="custom")
-        factories.Group()
-        factories.Group()
+        group1 = group_factory(type="custom")
+        group2 = group_factory(type="custom")
+        group_factory()
+        group_factory()
 
         group_list = helpers.call_action("group_list", type="custom")
 
@@ -264,22 +258,22 @@ class TestGroupList(object):
             [g["name"] for g in [group1, group2]]
         )
 
-    def test_group_list_sort_by_package_count(self):
+    def test_group_list_sort_by_package_count(self, group_factory, package_factory):
 
-        factories.Group(name="aa")
-        factories.Group(name="bb")
-        factories.Dataset(groups=[{"name": "aa"}, {"name": "bb"}])
-        factories.Dataset(groups=[{"name": "bb"}])
+        group_factory(name="aa")
+        group_factory(name="bb")
+        package_factory(groups=[{"name": "aa"}, {"name": "bb"}])
+        package_factory(groups=[{"name": "bb"}])
 
         group_list = helpers.call_action("group_list", sort="package_count")
         assert sorted(group_list) == sorted(["bb", "aa"])
 
-    def test_group_list_sort_by_package_count_ascending(self):
+    def test_group_list_sort_by_package_count_ascending(self, package_factory, group_factory):
 
-        factories.Group(name="aa")
-        factories.Group(name="bb")
-        factories.Dataset(groups=[{"name": "aa"}, {"name": "bb"}])
-        factories.Dataset(groups=[{"name": "aa"}])
+        group_factory(name="aa")
+        group_factory(name="bb")
+        package_factory(groups=[{"name": "aa"}, {"name": "bb"}])
+        package_factory(groups=[{"name": "aa"}])
 
         group_list = helpers.call_action(
             "group_list", sort="package_count asc"
@@ -287,10 +281,10 @@ class TestGroupList(object):
 
         assert group_list == ["bb", "aa"]
 
-    def test_group_list_sort_default(self):
+    def test_group_list_sort_default(self, group_factory):
 
-        factories.Group(name="zz", title="aa")
-        factories.Group(name="yy", title="bb")
+        group_factory(name="zz", title="aa")
+        group_factory(name="yy", title="bb")
 
         group_list = helpers.call_action(
             "group_list"
@@ -299,10 +293,10 @@ class TestGroupList(object):
         assert group_list == ['zz', 'yy']
 
     @pytest.mark.ckan_config("ckan.default_group_sort", "name")
-    def test_group_list_sort_from_config(self):
+    def test_group_list_sort_from_config(self, group_factory):
 
-        factories.Group(name="zz", title="aa")
-        factories.Group(name="yy", title="bb")
+        group_factory(name="zz", title="aa")
+        group_factory(name="yy", title="bb")
 
         group_list = helpers.call_action(
             "group_list"
@@ -321,9 +315,7 @@ class TestGroupList(object):
                 % (key, result_dict[key], expected_dict[key])
             )
 
-    def test_group_list_all_fields(self):
-
-        group = factories.Group()
+    def test_group_list_all_fields(self, group):
 
         group_list = helpers.call_action("group_list", all_fields=True)
 
@@ -370,9 +362,9 @@ class TestGroupList(object):
         results = helpers.call_action("group_list", all_fields=True)
         assert len(results) == 5  # i.e. configured limit
 
-    def test_group_list_extras_returned(self):
+    def test_group_list_extras_returned(self, group_factory):
 
-        group = factories.Group(extras=[{"key": "key1", "value": "val1"}])
+        group = group_factory(extras=[{"key": "key1", "value": "val1"}])
 
         group_list = helpers.call_action(
             "group_list", all_fields=True, include_extras=True
@@ -381,9 +373,8 @@ class TestGroupList(object):
         assert group_list[0]["extras"] == group["extras"]
         assert group_list[0]["extras"][0]["key"] == "key1"
 
-    def test_group_list_users_returned(self):
-        user = factories.User()
-        group = factories.Group(
+    def test_group_list_users_returned(self, user, group_factory):
+        group = group_factory(
             users=[{"name": user["name"], "capacity": "admin"}]
         )
 
@@ -397,10 +388,10 @@ class TestGroupList(object):
     # NB there is no test_group_list_tags_returned because tags are not in the
     # group_create schema (yet)
 
-    def test_group_list_groups_returned(self):
+    def test_group_list_groups_returned(self, group_factory):
 
-        parent_group = factories.Group(tags=[{"name": "river"}])
-        child_group = factories.Group(
+        parent_group = group_factory(tags=[{"name": "river"}])
+        child_group = group_factory(
             groups=[{"name": parent_group["name"]}], tags=[{"name": "river"}]
         )
 
@@ -419,47 +410,55 @@ class TestGroupList(object):
             expected_parent_group["name"]
         ]
 
-    def test_group_list_limit(self):
+    def test_group_list_limit(self, group_factory):
 
-        group1 = factories.Group()
-        group2 = factories.Group()
-        group3 = factories.Group()
-        group_names = [g["name"] for g in [group1, group2, group3]]
+        group1 = group_factory()
+        group2 = group_factory()
+        group3 = group_factory()
+        group_names = [
+            g["name"] for g in
+            sorted([group1, group2, group3], key=lambda g: g["title"])]
 
         group_list = helpers.call_action("group_list", limit=1)
 
         assert len(group_list) == 1
-        assert group_list[0] == sorted(group_names)[0]
+        assert group_list[0] == group_names[0]
 
-    def test_group_list_offset(self):
+    def test_group_list_offset(self, group_factory):
 
-        group1 = factories.Group()
-        group2 = factories.Group()
-        group3 = factories.Group()
-        group_names = [g["name"] for g in [group1, group2, group3]]
+        group1 = group_factory()
+        group2 = group_factory()
+        group3 = group_factory()
+        group_names = [
+            g["name"] for g in
+            sorted([group1, group2, group3], key=lambda g: g["title"])]
 
         group_list = helpers.call_action("group_list", offset=2)
 
         assert len(group_list) == 1
         # group list returns sorted result. This is not necessarily
         # order of creation
-        assert group_list[0] == sorted(group_names)[2]
+        assert group_list[0] == group_names[2]
 
-    def test_group_list_limit_and_offset(self):
+    def test_group_list_limit_and_offset(self, group_factory):
 
-        group1 = factories.Group(name='aa')
-        group2 = factories.Group(name='bb')
-        group3 = factories.Group(name='cc')
+        group1 = group_factory(name='aa')
+        group2 = group_factory(name='bb')
+        group3 = group_factory(name='cc')
+        group_names = [
+            g["name"] for g in
+            sorted([group1, group2, group3], key=lambda g: g["title"])]
+
 
         group_list = helpers.call_action("group_list", offset=1, limit=1)
 
         assert len(group_list) == 1
-        assert group_list[0] == group2["name"]
+        assert group_list[0] == group_names[1]
 
-    def test_group_list_limit_as_string(self):
+    def test_group_list_limit_as_string(self, group_factory):
 
-        group1 = factories.Group(name='aa')
-        group2 = factories.Group(name='bb')
+        group1 = group_factory(name='aa')
+        group2 = group_factory(name='bb')
 
         group_list = helpers.call_action("group_list", limit="1")
 
@@ -478,8 +477,8 @@ class TestGroupList(object):
 
 @pytest.mark.usefixtures("clean_db", "clean_index", "with_request_context")
 class TestGroupShow(object):
-    def test_group_show(self):
-        group = factories.Group(user=factories.User())
+    def test_group_show(self, user, group_factory):
+        group = group_factory(user=user)
 
         group_dict = helpers.call_action(
             "group_show", id=group["id"], include_datasets=True
@@ -493,17 +492,15 @@ class TestGroupShow(object):
         with pytest.raises(logic.NotFound):
             helpers.call_action("group_show", id="does_not_exist")
 
-    def test_group_show_error_for_organization(self):
-
-        org = factories.Organization()
+    def test_group_show_error_for_organization(self, organization):
 
         with pytest.raises(logic.NotFound):
-            helpers.call_action("group_show", id=org["id"])
+            helpers.call_action("group_show", id=organization["id"])
 
-    def test_group_show_packages_returned(self):
+    def test_group_show_packages_returned(self, user, group_factory):
         user_name = helpers.call_action("get_site_user")["name"]
 
-        group = factories.Group(user=factories.User())
+        group = group_factory(user=user)
 
         datasets = [
             {"name": "dataset_1", "groups": [{"name": group["name"]}]},
@@ -522,11 +519,11 @@ class TestGroupShow(object):
         assert len(group_dict["packages"]) == 2
         assert group_dict["package_count"] == 2
 
-    def test_group_show_packages_returned_for_view(self):
+    def test_group_show_packages_returned_for_view(self, user, group_factory):
 
         user_name = helpers.call_action("get_site_user")["name"]
 
-        group = factories.Group(user=factories.User())
+        group = group_factory(user=user)
 
         datasets = [
             {"name": "dataset_1", "groups": [{"name": group["name"]}]},
@@ -548,11 +545,11 @@ class TestGroupShow(object):
         assert len(group_dict["packages"]) == 2
         assert group_dict["package_count"] == 2
 
-    def test_group_show_no_packages_returned(self):
+    def test_group_show_no_packages_returned(self, user, group_factory):
 
         user_name = helpers.call_action("get_site_user")["name"]
 
-        group = factories.Group(user=factories.User())
+        group = group_factory(user=user)
 
         datasets = [
             {"name": "dataset_1", "groups": [{"name": group["name"]}]},
@@ -571,7 +568,7 @@ class TestGroupShow(object):
         assert "packages" not in group_dict
         assert group_dict["package_count"] == 2
 
-    def test_group_show_does_not_show_private_datasets(self):
+    def test_group_show_does_not_show_private_datasets(self, group, user_factory, sysadmin, package_factory, organization_factory):
         """group_show() should never show private datasets.
 
         If a dataset is a private member of an organization and also happens to
@@ -580,13 +577,11 @@ class TestGroupShow(object):
         member or admin of the group or the organization or is a sysadmin.
 
         """
-        org_member = factories.User()
-        org = factories.Organization(user=org_member)
-        private_dataset = factories.Dataset(
+        org_member = user_factory()
+        org = organization_factory(user=org_member)
+        private_dataset = package_factory(
             user=org_member, owner_org=org["name"], private=True
         )
-
-        group = factories.Group()
 
         # Add the private dataset to the group.
         helpers.call_action(
@@ -598,7 +593,7 @@ class TestGroupShow(object):
         )
 
         # Create a member user and an admin user of the group.
-        group_member = factories.User()
+        group_member = user_factory()
         helpers.call_action(
             "member_create",
             id=group["id"],
@@ -606,7 +601,7 @@ class TestGroupShow(object):
             object_type="user",
             capacity="member",
         )
-        group_admin = factories.User()
+        group_admin = user_factory()
         helpers.call_action(
             "member_create",
             id=group["id"],
@@ -616,9 +611,7 @@ class TestGroupShow(object):
         )
 
         # Create a user who isn't a member of any group or organization.
-        non_member = factories.User()
-
-        sysadmin = factories.Sysadmin()
+        non_member = user_factory()
 
         # None of the users should see the dataset when they call group_show().
         for user in (
@@ -647,10 +640,9 @@ class TestGroupShow(object):
             ], "group_show() should never show private datasets"
 
     @pytest.mark.ckan_config("ckan.search.rows_max", "5")
-    def test_package_limit_configured(self):
-        group = factories.Group()
+    def test_package_limit_configured(self, group, package_factory):
         for i in range(7):
-            factories.Dataset(groups=[{"id": group["id"]}])
+            package_factory(groups=[{"id": group["id"]}])
         id = group["id"]
 
         results = helpers.call_action("group_show", id=id, include_datasets=1)
@@ -659,52 +651,52 @@ class TestGroupShow(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestOrganizationList(object):
-    def test_organization_list(self):
+    def test_organization_list(self, organization_factory):
 
-        org1 = factories.Organization()
-        org2 = factories.Organization()
+        org1 = organization_factory()
+        org2 = organization_factory()
 
         org_list = helpers.call_action("organization_list")
 
         assert sorted(org_list) == sorted([g["name"] for g in [org1, org2]])
 
-    def test_organization_list_in_presence_of_groups(self):
+    def test_organization_list_in_presence_of_groups(self, group_factory, organization_factory):
         """
         Getting the organization_list only returns organization group
         types.
         """
-        org1 = factories.Organization()
-        org2 = factories.Organization()
-        factories.Group()
-        factories.Group()
+        org1 = organization_factory()
+        org2 = organization_factory()
+        group_factory()
+        group_factory()
 
         org_list = helpers.call_action("organization_list")
 
         assert sorted(org_list) == sorted([g["name"] for g in [org1, org2]])
 
-    def test_organization_list_in_presence_of_custom_group_types(self):
+    def test_organization_list_in_presence_of_custom_group_types(self, organization_factory, group_factory):
         """
         Getting the organization_list only returns organization group
         types.
         """
-        org1 = factories.Organization()
-        org2 = factories.Organization()
-        factories.Group(type="custom")
-        factories.Group(type="custom")
+        org1 = organization_factory()
+        org2 = organization_factory()
+        group_factory(type="custom")
+        group_factory(type="custom")
 
         org_list = helpers.call_action("organization_list")
 
         assert sorted(org_list) == sorted([g["name"] for g in [org1, org2]])
 
-    def test_organization_list_return_custom_organization_type(self):
+    def test_organization_list_return_custom_organization_type(self, organization_factory, group_factory):
         """
         Getting the org_list with a type defined should only return
         orgs of that type.
         """
-        org1 = factories.Organization()
-        org2 = factories.Organization(type="custom_org")
-        factories.Group(type="custom")
-        factories.Group(type="custom")
+        org1 = organization_factory()
+        org2 = organization_factory(type="custom_org")
+        group_factory(type="custom")
+        group_factory(type="custom")
 
         org_list = helpers.call_action("organization_list", type="custom_org")
 
@@ -766,37 +758,31 @@ class TestOrganizationList(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestOrganizationShow(object):
-    def test_organization_show(self):
-        org = factories.Organization()
-
+    def test_organization_show(self, organization):
         org_dict = helpers.call_action(
-            "organization_show", id=org["id"], include_datasets=True
+            "organization_show", id=organization["id"], include_datasets=True
         )
 
         org_dict.pop("packages", None)
-        assert org_dict == org
+        assert org_dict == organization
 
     def test_organization_show_error_not_found(self):
 
         with pytest.raises(logic.NotFound):
             helpers.call_action("organization_show", id="does_not_exist")
 
-    def test_organization_show_error_for_group(self):
-
-        group = factories.Group()
+    def test_organization_show_error_for_group(self, group):
 
         with pytest.raises(logic.NotFound):
             helpers.call_action("organization_show", id=group["id"])
 
-    def test_organization_show_packages_returned(self):
+    def test_organization_show_packages_returned(self, organization):
 
         user_name = helpers.call_action("get_site_user")["name"]
 
-        org = factories.Organization()
-
         datasets = [
-            {"name": "dataset_1", "owner_org": org["name"]},
-            {"name": "dataset_2", "owner_org": org["name"]},
+            {"name": "dataset_1", "owner_org": organization["name"]},
+            {"name": "dataset_2", "owner_org": organization["name"]},
         ]
 
         for dataset in datasets:
@@ -805,21 +791,19 @@ class TestOrganizationShow(object):
             )
 
         org_dict = helpers.call_action(
-            "organization_show", id=org["id"], include_datasets=True
+            "organization_show", id=organization["id"], include_datasets=True
         )
 
         assert len(org_dict["packages"]) == 2
         assert org_dict["package_count"] == 2
 
-    def test_organization_show_private_packages_not_returned(self):
+    def test_organization_show_private_packages_not_returned(self, organization):
 
         user_name = helpers.call_action("get_site_user")["name"]
 
-        org = factories.Organization()
-
         datasets = [
-            {"name": "dataset_1", "owner_org": org["name"]},
-            {"name": "dataset_2", "owner_org": org["name"], "private": True},
+            {"name": "dataset_1", "owner_org": organization["name"]},
+            {"name": "dataset_2", "owner_org": organization["name"], "private": True},
         ]
 
         for dataset in datasets:
@@ -828,7 +812,7 @@ class TestOrganizationShow(object):
             )
 
         org_dict = helpers.call_action(
-            "organization_show", id=org["id"], include_datasets=True
+            "organization_show", id=organization["id"], include_datasets=True
         )
 
         assert len(org_dict["packages"]) == 1
@@ -836,23 +820,21 @@ class TestOrganizationShow(object):
         assert org_dict["package_count"] == 1
 
     @pytest.mark.ckan_config("ckan.search.rows_max", "5")
-    def test_package_limit_configured(self):
-        org = factories.Organization()
+    def test_package_limit_configured(self, organization, package_factory):
         for i in range(7):
-            factories.Dataset(owner_org=org["id"])
-        id = org["id"]
+            package_factory(owner_org=organization["id"])
+        id = organization["id"]
 
         results = helpers.call_action(
-            "organization_show", id=id, include_datasets=1
+            "organization_show", id=id, include_datasets=True
         )
         assert len(results["packages"]) == 5  # i.e. ckan.search.rows_max
 
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestUserList(object):
-    def test_user_list_default_values(self):
+    def test_user_list_default_values(self, user):
 
-        user = factories.User()
 
         got_users = helpers.call_action("user_list")
 
@@ -873,10 +855,9 @@ class TestUserList(object):
         assert "email" not in got_user
         assert "datasets" not in got_user
 
-    def test_user_list_edits(self):
+    def test_user_list_edits(self, user, package_factory):
 
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+        dataset = package_factory(user=user)
         dataset["title"] = "Edited title"
         helpers.call_action(
             "package_update", context={"user": user["name"]}, **dataset
@@ -889,20 +870,16 @@ class TestUserList(object):
         got_user = got_users[0]
         assert got_user["number_created_packages"] == 1
 
-    def test_user_list_excludes_deleted_users(self):
+    def test_user_list_excludes_deleted_users(self, user, user_factory):
 
-        user = factories.User()
-        factories.User(state="deleted")
-
+        user_factory(state="deleted")
         got_users = helpers.call_action("user_list")
 
         # There is one default user
         assert len(got_users) == 2
         assert got_users[0]["name"] == user["name"]
 
-    def test_user_list_not_all_fields(self):
-
-        user = factories.User()
+    def test_user_list_not_all_fields(self, user):
 
         got_users = helpers.call_action("user_list", all_fields=False)
 
@@ -911,8 +888,8 @@ class TestUserList(object):
         got_user = got_users[0]
         assert got_user == user["name"]
 
-    def test_user_list_return_query(self):
-        user_a = factories.User(email="a@example.com")
+    def test_user_list_return_query(self, user_factory):
+        user_a = user_factory(email="a@example.com")
         query = helpers.call_action(
             "user_list",
             {"return_query": True},
@@ -924,10 +901,10 @@ class TestUserList(object):
         for prop in expected:
             assert user_a[prop] == getattr(user, prop), prop
 
-    def test_user_list_filtered_by_email(self):
+    def test_user_list_filtered_by_email(self, user_factory):
 
-        user_a = factories.User(email="a@example.com")
-        factories.User(email="b@example.com")
+        user_a = user_factory(email="a@example.com")
+        user_factory(email="b@example.com")
 
         got_users = helpers.call_action(
             "user_list", email="a@example.com", all_fields=False
@@ -937,14 +914,14 @@ class TestUserList(object):
         got_user = got_users[0]
         assert got_user == user_a["name"]
 
-    def test_user_list_order_by_default(self):
+    def test_user_list_order_by_default(self, user_factory):
         default_user = helpers.call_action('get_site_user', ignore_auth=True)
 
         users = [
-            factories.User(fullname="Xander Bird", name="bird_x"),
-            factories.User(fullname="Max Hankins", name="hankins_m"),
-            factories.User(fullname="", name="morgan_w"),
-            factories.User(fullname="Kathy Tillman", name="tillman_k"),
+            user_factory(fullname="Xander Bird", name="bird_x"),
+            user_factory(fullname="Max Hankins", name="hankins_m"),
+            user_factory(fullname="", name="morgan_w"),
+            user_factory(fullname="Kathy Tillman", name="tillman_k"),
         ]
         expected_names = [
             u['name'] for u in [
@@ -962,14 +939,14 @@ class TestUserList(object):
 
         assert got_names == expected_names
 
-    def test_user_list_order_by_fullname_only(self):
+    def test_user_list_order_by_fullname_only(self, user_factory):
         default_user = helpers.call_action('get_site_user', ignore_auth=True)
 
         users = [
-            factories.User(fullname="Xander Bird", name="bird_x"),
-            factories.User(fullname="Max Hankins", name="hankins_m"),
-            factories.User(fullname="", name="morgan_w"),
-            factories.User(fullname="Kathy Tillman", name="tillman_k"),
+            user_factory(fullname="Xander Bird", name="bird_x"),
+            user_factory(fullname="Max Hankins", name="hankins_m"),
+            user_factory(fullname="", name="morgan_w"),
+            user_factory(fullname="Kathy Tillman", name="tillman_k"),
         ]
         expected_fullnames = sorted([u['fullname'] for u in users])
 
@@ -980,17 +957,17 @@ class TestUserList(object):
 
         assert got_fullnames == expected_fullnames
 
-    def test_user_list_order_by_created_datasets(self):
+    def test_user_list_order_by_created_datasets(self, package_factory, user_factory):
         default_user = helpers.call_action('get_site_user', ignore_auth=True)
 
         users = [
-            factories.User(fullname="Xander Bird", name="bird_x"),
-            factories.User(fullname="Max Hankins", name="hankins_m"),
-            factories.User(fullname="Kathy Tillman", name="tillman_k"),
+            user_factory(fullname="Xander Bird", name="bird_x"),
+            user_factory(fullname="Max Hankins", name="hankins_m"),
+            user_factory(fullname="Kathy Tillman", name="tillman_k"),
         ]
         datasets = [
-            factories.Dataset(user=users[1]),
-            factories.Dataset(user=users[1])
+            package_factory(user=users[1]),
+            package_factory(user=users[1])
         ]
         for dataset in datasets:
             dataset["title"] = "Edited title"
@@ -1021,10 +998,7 @@ class TestUserList(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestUserShow(object):
-    def test_user_show_default_values(self):
-
-        user = factories.User()
-
+    def test_user_show_default_values(self, user):
         got_user = helpers.call_action("user_show", id=user["id"])
 
         assert got_user["id"] == user["id"]
@@ -1042,10 +1016,7 @@ class TestUserShow(object):
         assert "datasets" not in got_user
         assert "password_hash" not in got_user
 
-    def test_user_show_keep_email(self):
-
-        user = factories.User()
-
+    def test_user_show_keep_email(self, user):
         got_user = helpers.call_action(
             "user_show", context={"keep_email": True}, id=user["id"]
         )
@@ -1055,10 +1026,7 @@ class TestUserShow(object):
         assert "password" not in got_user
         assert "reset_key" not in got_user
 
-    def test_user_show_keep_apikey(self):
-
-        user = factories.User()
-
+    def test_user_show_keep_apikey(self, user):
         got_user = helpers.call_action(
             "user_show", context={"keep_apikey": True}, id=user["id"]
         )
@@ -1068,20 +1036,14 @@ class TestUserShow(object):
         assert "password" not in got_user
         assert "reset_key" not in got_user
 
-    def test_user_show_normal_user_no_password_hash(self):
-
-        user = factories.User()
-
+    def test_user_show_normal_user_no_password_hash(self, user):
         got_user = helpers.call_action(
             "user_show", id=user["id"], include_password_hash=True
         )
 
         assert "password_hash" not in got_user
 
-    def test_user_show_for_myself(self):
-
-        user = factories.User()
-
+    def test_user_show_for_myself(self, user):
         got_user = helpers.call_action(
             "user_show", context={"user": user["name"]}, id=user["id"]
         )
@@ -1091,11 +1053,8 @@ class TestUserShow(object):
         assert "password" not in got_user
         assert "reset_key" not in got_user
 
-    def test_user_show_sysadmin_values(self):
-
-        user = factories.User()
-
-        sysadmin = factories.User(sysadmin=True)
+    def test_user_show_sysadmin_values(self, user, user_factory):
+        sysadmin = user_factory(sysadmin=True)
 
         got_user = helpers.call_action(
             "user_show", context={"user": sysadmin["name"]}, id=user["id"]
@@ -1106,11 +1065,9 @@ class TestUserShow(object):
         assert "password" not in got_user
         assert "reset_key" not in got_user
 
-    def test_user_show_sysadmin_password_hash(self):
+    def test_user_show_sysadmin_password_hash(self, user_factory, sysadmin):
 
-        user = factories.User(password="TestPassword1")
-
-        sysadmin = factories.User(sysadmin=True)
+        user = user_factory(password="TestPassword1")
 
         got_user = helpers.call_action(
             "user_show",
@@ -1125,11 +1082,8 @@ class TestUserShow(object):
         assert "password" not in got_user
         assert "reset_key" not in got_user
 
-    def test_user_show_include_datasets(self):
-
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
-
+    def test_user_show_include_datasets(self, user, package_factory):
+        dataset = package_factory(user=user)
         got_user = helpers.call_action(
             "user_show", include_datasets=True, id=user["id"]
         )
@@ -1137,14 +1091,13 @@ class TestUserShow(object):
         assert len(got_user["datasets"]) == 1
         assert got_user["datasets"][0]["name"] == dataset["name"]
 
-    def test_user_show_include_datasets_excludes_draft_and_private(self):
+    def test_user_show_include_datasets_excludes_draft_and_private(self, user, package_factory, organization_factory):
 
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(user=user)
-        factories.Dataset(user=user, state="deleted")
-        factories.Dataset(user=user, state="draft")
-        factories.Dataset(user=user, private=True, owner_org=org["name"])
+        org = organization_factory(user=user)
+        dataset = package_factory(user=user)
+        package_factory(user=user, state="deleted")
+        package_factory(user=user, state="draft")
+        package_factory(user=user, private=True, owner_org=org["name"])
 
         got_user = helpers.call_action(
             "user_show", include_datasets=True, id=user["id"]
@@ -1154,15 +1107,14 @@ class TestUserShow(object):
         assert got_user["datasets"][0]["name"] == dataset["name"]
         assert got_user["number_created_packages"] == 1
 
-    def test_user_show_include_datasets_includes_draft_myself(self):
+    def test_user_show_include_datasets_includes_draft_myself(self, user, package_factory, organization_factory):
         # a user viewing his own user should see the draft and private datasets
 
-        user = factories.User()
-        org = factories.Organization(user=user)
-        factories.Dataset(user=user)
-        dataset_deleted = factories.Dataset(user=user, state="deleted")
-        factories.Dataset(user=user, state="draft")
-        factories.Dataset(user=user, private=True, owner_org=org["name"])
+        org = organization_factory(user=user)
+        package_factory(user=user)
+        dataset_deleted = package_factory(user=user, state="deleted")
+        package_factory(user=user, state="draft")
+        package_factory(user=user, private=True, owner_org=org["name"])
 
         got_user = helpers.call_action(
             "user_show",
@@ -1176,16 +1128,14 @@ class TestUserShow(object):
         assert dataset_deleted["name"] not in datasets_got
         assert got_user["number_created_packages"] == 3
 
-    def test_user_show_include_datasets_includes_draft_sysadmin(self):
+    def test_user_show_include_datasets_includes_draft_sysadmin(self, user, sysadmin, package_factory, organization_factory):
         # sysadmin should see the draft and private datasets
 
-        user = factories.User()
-        sysadmin = factories.Sysadmin()
-        org = factories.Organization(user=user)
-        factories.Dataset(user=user)
-        dataset_deleted = factories.Dataset(user=user, state="deleted")
-        factories.Dataset(user=user, state="draft")
-        factories.Dataset(user=user, private=True, owner_org=org["name"])
+        org = organization_factory(user=user)
+        package_factory(user=user)
+        dataset_deleted = package_factory(user=user, state="deleted")
+        package_factory(user=user, state="draft")
+        package_factory(user=user, private=True, owner_org=org["name"])
 
         got_user = helpers.call_action(
             "user_show",
@@ -1202,72 +1152,66 @@ class TestUserShow(object):
 
 @pytest.mark.usefixtures("clean_db", "clean_index", "with_request_context")
 class TestCurrentPackageList(object):
-    def test_current_package_list(self):
+    def test_current_package_list(self, user, package_factory):
         """
         Test current_package_list_with_resources with no parameters
         """
-        user = factories.User()
-        dataset1 = factories.Dataset(user=user)
-        dataset2 = factories.Dataset(user=user)
+        dataset1 = package_factory(user=user)
+        dataset2 = package_factory(user=user)
         current_package_list = helpers.call_action(
             "current_package_list_with_resources"
         )
         assert len(current_package_list) == 2
 
-    def test_current_package_list_limit_param(self):
+    def test_current_package_list_limit_param(self, user, package_factory):
         """
         Test current_package_list_with_resources with limit parameter
         """
-        user = factories.User()
-        dataset1 = factories.Dataset(user=user)
-        dataset2 = factories.Dataset(user=user)
+        dataset1 = package_factory(user=user)
+        dataset2 = package_factory(user=user)
         current_package_list = helpers.call_action(
             "current_package_list_with_resources", limit=1
         )
         assert len(current_package_list) == 1
         assert current_package_list[0]["name"] == dataset2["name"]
 
-    def test_current_package_list_offset_param(self):
+    def test_current_package_list_offset_param(self, user, package_factory):
         """
         Test current_package_list_with_resources with offset parameter
         """
-        user = factories.User()
-        dataset1 = factories.Dataset(user=user)
-        dataset2 = factories.Dataset(user=user)
+        dataset1 = package_factory(user=user)
+        dataset2 = package_factory(user=user)
         current_package_list = helpers.call_action(
             "current_package_list_with_resources", offset=1
         )
         assert len(current_package_list) == 1
         assert current_package_list[0]["name"] == dataset1["name"]
 
-    def test_current_package_list_private_datasets_anonoymous_user(self):
+    def test_current_package_list_private_datasets_anonoymous_user(self, user, package_factory, organization_factory):
         """
         Test current_package_list_with_resources with an anoymous user and
         a private dataset
         """
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset1 = factories.Dataset(
+        org = organization_factory(user=user)
+        dataset1 = package_factory(
             user=user, owner_org=org["name"], private=True
         )
-        dataset2 = factories.Dataset(user=user)
+        dataset2 = package_factory(user=user)
         current_package_list = helpers.call_action(
             "current_package_list_with_resources", context={}
         )
         assert len(current_package_list) == 1
 
-    def test_current_package_list_private_datasets_sysadmin_user(self):
+    def test_current_package_list_private_datasets_sysadmin_user(self, user, sysadmin, package_factory, organization_factory):
         """
         Test current_package_list_with_resources with a sysadmin user and a
         private dataset
         """
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset1 = factories.Dataset(
+        org = organization_factory(user=user)
+        dataset1 = package_factory(
             user=user, owner_org=org["name"], private=True
         )
-        dataset2 = factories.Dataset(user=user)
-        sysadmin = factories.Sysadmin()
+        dataset2 = package_factory(user=user)
         current_package_list = helpers.call_action(
             "current_package_list_with_resources",
             context={"user": sysadmin["name"]},
@@ -1277,14 +1221,13 @@ class TestCurrentPackageList(object):
 
 @pytest.mark.usefixtures("clean_db", "clean_index", "with_request_context")
 class TestPackageAutocomplete(object):
-    def test_package_autocomplete_does_not_return_private_datasets(self):
+    def test_package_autocomplete_does_not_return_private_datasets(self, user, package_factory, organization_factory):
 
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset1 = factories.Dataset(
+        org = organization_factory(user=user)
+        dataset1 = package_factory(
             user=user, owner_org=org["name"], title="Some public stuff"
         )
-        dataset2 = factories.Dataset(
+        dataset2 = package_factory(
             user=user,
             owner_org=org["name"],
             private=True,
@@ -1297,16 +1240,15 @@ class TestPackageAutocomplete(object):
         assert len(package_list) == 1
 
     def test_package_autocomplete_does_return_private_datasets_from_my_org(
-        self,
+            self, user, package_factory, organization_factory
     ):
-        user = factories.User()
-        org = factories.Organization(
+        org = organization_factory(
             users=[{"name": user["name"], "capacity": "member"}]
         )
-        factories.Dataset(
+        package_factory(
             user=user, owner_org=org["id"], title="Some public stuff"
         )
-        factories.Dataset(
+        package_factory(
             user=user,
             owner_org=org["id"],
             private=True,
@@ -1319,9 +1261,9 @@ class TestPackageAutocomplete(object):
         )
         assert len(package_list) == 2
 
-    def test_package_autocomplete_works_for_the_middle_part_of_title(self):
-        factories.Dataset(title="Some public stuff")
-        factories.Dataset(title="Some random stuff")
+    def test_package_autocomplete_works_for_the_middle_part_of_title(self, package_factory):
+        package_factory(title="Some public stuff")
+        package_factory(title="Some random stuff")
 
         package_list = helpers.call_action("package_autocomplete", q="bli")
         assert len(package_list) == 1
@@ -1331,18 +1273,18 @@ class TestPackageAutocomplete(object):
 
 @pytest.mark.usefixtures("clean_db", "clean_index", "with_request_context")
 class TestPackageSearch(object):
-    def test_search(self):
-        factories.Dataset(title="Rivers")
-        factories.Dataset(title="Lakes")  # decoy
+    def test_search(self, package_factory):
+        package_factory(title="Rivers")
+        package_factory(title="Lakes")  # decoy
 
         search_result = helpers.call_action("package_search", q="rivers")
 
         assert search_result["results"][0]["title"] == "Rivers"
         assert search_result["count"] == 1
 
-    def test_search_fl(self):
-        d1 = factories.Dataset(title="Rivers", name="test_ri")
-        d2 = factories.Dataset(title="Lakes")
+    def test_search_fl(self, package_factory):
+        d1 = package_factory(title="Rivers", name="test_ri")
+        d2 = package_factory(title="Lakes")
 
         search_result = helpers.call_action(
             "package_search", q="rivers", fl=["title", "name"]
@@ -1363,9 +1305,9 @@ class TestPackageSearch(object):
         )
         assert search_result["results"] == [{"id": d1["id"]}]
 
-    def test_search_all(self):
-        factories.Dataset(title="Rivers")
-        factories.Dataset(title="Lakes")
+    def test_search_all(self, package_factory):
+        package_factory(title="Rivers")
+        package_factory(title="Lakes")
 
         search_result = helpers.call_action("package_search")  # no q
 
@@ -1402,10 +1344,10 @@ class TestPackageSearch(object):
         results = logic.get_action("package_search")({}, {"rows": "15"})
         assert len(results["results"]) == 12  # i.e. ckan.search.rows_max
 
-    def test_facets(self):
-        org = factories.Organization(name="test-org-facet", title="Test Org")
-        factories.Dataset(owner_org=org["id"])
-        factories.Dataset(owner_org=org["id"])
+    def test_facets(self, package_factory, organization_factory):
+        org = organization_factory(name="test-org-facet", title="Test Org")
+        package_factory(owner_org=org["id"])
+        package_factory(owner_org=org["id"])
 
         data_dict = {"facet.field": ["organization"]}
         search_result = helpers.call_action("package_search", **data_dict)
@@ -1424,14 +1366,14 @@ class TestPackageSearch(object):
             }
         }
 
-    def test_facet_limit(self):
-        group1 = factories.Group(name="test-group-fl1", title="Test Group 1")
-        group2 = factories.Group(name="test-group-fl2", title="Test Group 2")
-        factories.Dataset(
+    def test_facet_limit(self, package_factory, group_factory):
+        group1 = group_factory(name="test-group-fl1", title="Test Group 1")
+        group2 = group_factory(name="test-group-fl2", title="Test Group 2")
+        package_factory(
             groups=[{"name": group1["name"]}, {"name": group2["name"]}]
         )
-        factories.Dataset(groups=[{"name": group1["name"]}])
-        factories.Dataset()
+        package_factory(groups=[{"name": group1["name"]}])
+        package_factory()
 
         data_dict = {"facet.field": ["groups"], "facet.limit": 1}
         search_result = helpers.call_action("package_search", **data_dict)
@@ -1450,24 +1392,24 @@ class TestPackageSearch(object):
             }
         }
 
-    def test_facet_no_limit(self):
-        group1 = factories.Group()
-        group2 = factories.Group()
-        factories.Dataset(
+    def test_facet_no_limit(self, group_factory, package_factory):
+        group1 = group_factory()
+        group2 = group_factory()
+        package_factory(
             groups=[{"name": group1["name"]}, {"name": group2["name"]}]
         )
-        factories.Dataset(groups=[{"name": group1["name"]}])
-        factories.Dataset()
+        package_factory(groups=[{"name": group1["name"]}])
+        package_factory()
 
         data_dict = {"facet.field": ["groups"], "facet.limit": -1}  # no limit
         search_result = helpers.call_action("package_search", **data_dict)
 
         assert len(search_result["search_facets"]["groups"]["items"]) == 2
 
-    def test_sort(self):
-        factories.Dataset(name="test0")
-        factories.Dataset(name="test1")
-        factories.Dataset(name="test2")
+    def test_sort(self, package_factory):
+        package_factory(name="test0")
+        package_factory(name="test1")
+        package_factory(name="test2")
 
         search_result = helpers.call_action(
             "package_search", sort="metadata_created desc"
@@ -1477,10 +1419,10 @@ class TestPackageSearch(object):
         assert result_names == [u"test2", u"test1", u"test0"]
 
     @pytest.mark.ckan_config("ckan.search.default_package_sort", "metadata_created asc")
-    def test_sort_default_from_config(self):
-        factories.Dataset(name="test0")
-        factories.Dataset(name="test1")
-        factories.Dataset(name="test2")
+    def test_sort_default_from_config(self, package_factory):
+        package_factory(name="test0")
+        package_factory(name="test1")
+        package_factory(name="test2")
 
         search_result = helpers.call_action(
             "package_search"
@@ -1489,12 +1431,12 @@ class TestPackageSearch(object):
         result_names = [result["name"] for result in search_result["results"]]
         assert result_names == [u"test0", u"test1", u"test2"]
 
-    def test_package_search_on_resource_name(self):
+    def test_package_search_on_resource_name(self, resource_factory):
         """
         package_search() should allow searching on resource name field.
         """
         resource_name = "resource_abc"
-        factories.Resource(name=resource_name)
+        resource_factory(name=resource_name)
 
         search_result = helpers.call_action("package_search", q="resource_abc")
         assert (
@@ -1502,56 +1444,53 @@ class TestPackageSearch(object):
             == resource_name
         )
 
-    def test_package_search_excludes_private_and_drafts(self):
+    def test_package_search_excludes_private_and_drafts(self, user, package_factory, organization_factory):
         """
         package_search() with no options should not return private and draft
         datasets.
         """
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(user=user)
-        factories.Dataset(user=user, state="deleted")
-        factories.Dataset(user=user, state="draft")
-        factories.Dataset(user=user, private=True, owner_org=org["name"])
+        org = organization_factory(user=user)
+        dataset = package_factory(user=user)
+        package_factory(user=user, state="deleted")
+        package_factory(user=user, state="draft")
+        package_factory(user=user, private=True, owner_org=org["name"])
 
         results = helpers.call_action("package_search")["results"]
 
         assert len(results) == 1
         assert results[0]["name"] == dataset["name"]
 
-    def test_package_search_with_fq_excludes_private(self):
+    def test_package_search_with_fq_excludes_private(self, user, package_factory, organization_factory):
         """
         package_search() with fq capacity:private should not return private
         and draft datasets.
         """
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(user=user)
-        factories.Dataset(user=user, state="deleted")
-        factories.Dataset(user=user, state="draft")
-        factories.Dataset(user=user, private=True, owner_org=org["name"])
+        org = organization_factory(user=user)
+        dataset = package_factory(user=user)
+        package_factory(user=user, state="deleted")
+        package_factory(user=user, state="draft")
+        package_factory(user=user, private=True, owner_org=org["name"])
 
         fq = "capacity:private"
         results = helpers.call_action("package_search", fq=fq)["results"]
 
         assert len(results) == 0
 
-    def test_package_search_with_fq_excludes_drafts(self):
+    def test_package_search_with_fq_excludes_drafts(self, user, user_factory, package_factory, organization_factory):
         """
         A sysadmin user can't use fq drafts to get draft datasets. Nothing is
         returned.
         """
-        user = factories.User()
-        other_user = factories.User()
-        org = factories.Organization(user=user)
-        factories.Dataset(user=user, name="dataset")
-        factories.Dataset(user=other_user, name="other-dataset")
-        factories.Dataset(user=user, state="deleted", name="deleted-dataset")
-        factories.Dataset(user=user, state="draft", name="draft-dataset")
-        factories.Dataset(
+        other_user = user_factory()
+        org = organization_factory(user=user)
+        package_factory(user=user, name="dataset")
+        package_factory(user=other_user, name="other-dataset")
+        package_factory(user=user, state="deleted", name="deleted-dataset")
+        package_factory(user=user, state="draft", name="draft-dataset")
+        package_factory(
             user=other_user, state="draft", name="other-draft-dataset"
         )
-        factories.Dataset(
+        package_factory(
             user=user,
             private=True,
             owner_org=org["name"],
@@ -1564,17 +1503,16 @@ class TestPackageSearch(object):
         assert len(results) == 0
 
     def test_package_search_with_include_drafts_option_excludes_drafts_for_anon_user(
-        self,
+            self, user, package_factory, organization_factory
     ):
         """
         An anon user can't user include_drafts to get draft datasets.
         """
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(user=user)
-        factories.Dataset(user=user, state="deleted")
-        draft_dataset = factories.Dataset(user=user, state="draft")
-        factories.Dataset(user=user, private=True, owner_org=org["name"])
+        org = organization_factory(user=user)
+        dataset = package_factory(user=user)
+        package_factory(user=user, state="deleted")
+        draft_dataset = package_factory(user=user, state="draft")
+        package_factory(user=user, private=True, owner_org=org["name"])
 
         results = logic.get_action("package_search")(
             {u"user": u""}, {"include_drafts": True}
@@ -1585,21 +1523,19 @@ class TestPackageSearch(object):
         assert results[0]["name"] == dataset["name"]
 
     def test_package_search_with_include_drafts_option_includes_drafts_for_sysadmin(
-        self,
+            self, user, user_factory, sysadmin, package_factory, organization_factory
     ):
         """
         A sysadmin can use the include_drafts option to get draft datasets for
         all users.
         """
-        user = factories.User()
-        other_user = factories.User()
-        sysadmin = factories.Sysadmin()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(user=user)
-        factories.Dataset(user=user, state="deleted")
-        draft_dataset = factories.Dataset(user=user, state="draft")
-        other_draft_dataset = factories.Dataset(user=other_user, state="draft")
-        factories.Dataset(user=user, private=True, owner_org=org["name"])
+        other_user = user_factory()
+        org = organization_factory(user=user)
+        dataset = package_factory(user=user)
+        package_factory(user=user, state="deleted")
+        draft_dataset = package_factory(user=user, state="draft")
+        other_draft_dataset = package_factory(user=other_user, state="draft")
+        package_factory(user=user, private=True, owner_org=org["name"])
 
         results = logic.get_action("package_search")(
             {"user": sysadmin["name"]}, {"include_drafts": True}
@@ -1612,21 +1548,19 @@ class TestPackageSearch(object):
         assert dataset["name"] in names
 
     def test_package_search_with_include_drafts_false_option_doesnot_include_drafts_for_sysadmin(
-        self,
+            self, user, user_factory, sysadmin, package_factory, organization_factory
     ):
         """
         A sysadmin with include_drafts option set to `False` will not get
         drafts returned in results.
         """
-        user = factories.User()
-        other_user = factories.User()
-        sysadmin = factories.Sysadmin()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(user=user)
-        factories.Dataset(user=user, state="deleted")
-        draft_dataset = factories.Dataset(user=user, state="draft")
-        other_draft_dataset = factories.Dataset(user=other_user, state="draft")
-        factories.Dataset(user=user, private=True, owner_org=org["name"])
+        other_user = user_factory()
+        org = organization_factory(user=user)
+        dataset = package_factory(user=user)
+        package_factory(user=user, state="deleted")
+        draft_dataset = package_factory(user=user, state="draft")
+        other_draft_dataset = package_factory(user=other_user, state="draft")
+        package_factory(user=user, private=True, owner_org=org["name"])
 
         results = logic.get_action("package_search")(
             {"user": sysadmin["name"]}, {"include_drafts": False}
@@ -1639,27 +1573,26 @@ class TestPackageSearch(object):
         assert dataset["name"] in names
 
     def test_package_search_with_include_drafts_option_includes_drafts_for_user(
-        self,
+            self, user, user_factory, package_factory, organization_factory
     ):
         """
         The include_drafts option will include draft datasets for the
         authorized user, but not drafts for other users.
         """
-        user = factories.User()
-        other_user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(user=user, name="dataset")
-        other_dataset = factories.Dataset(
+        other_user = user_factory()
+        org = organization_factory(user=user)
+        dataset = package_factory(user=user, name="dataset")
+        other_dataset = package_factory(
             user=other_user, name="other-dataset"
         )
-        factories.Dataset(user=user, state="deleted", name="deleted-dataset")
-        draft_dataset = factories.Dataset(
+        package_factory(user=user, state="deleted", name="deleted-dataset")
+        draft_dataset = package_factory(
             user=user, state="draft", name="draft-dataset"
         )
-        other_draft_dataset = factories.Dataset(
+        other_draft_dataset = package_factory(
             user=other_user, state="draft", name="other-draft-dataset"
         )
-        factories.Dataset(
+        package_factory(
             user=user,
             private=True,
             owner_org=org["name"],
@@ -1678,27 +1611,26 @@ class TestPackageSearch(object):
         assert other_dataset["name"] in names
 
     def test_package_search_with_fq_for_create_user_id_will_include_datasets_for_other_users(
-        self,
+            self, user, user_factory, package_factory, organization_factory
     ):
         """
         A normal user can use the fq creator_user_id to get active datasets
         (but not draft) for another user.
         """
-        user = factories.User()
-        other_user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(user=user, name="dataset")
-        other_dataset = factories.Dataset(
+        other_user = user_factory()
+        org = organization_factory(user=user)
+        dataset = package_factory(user=user, name="dataset")
+        other_dataset = package_factory(
             user=other_user, name="other-dataset"
         )
-        factories.Dataset(user=user, state="deleted", name="deleted-dataset")
-        draft_dataset = factories.Dataset(
+        package_factory(user=user, state="deleted", name="deleted-dataset")
+        draft_dataset = package_factory(
             user=user, state="draft", name="draft-dataset"
         )
-        other_draft_dataset = factories.Dataset(
+        other_draft_dataset = package_factory(
             user=other_user, state="draft", name="other-draft-dataset"
         )
-        factories.Dataset(
+        package_factory(
             user=user,
             private=True,
             owner_org=org["name"],
@@ -1718,23 +1650,22 @@ class TestPackageSearch(object):
         assert other_dataset["name"] in names
 
     def test_package_search_with_fq_for_create_user_id_will_not_include_drafts_for_other_users(
-        self,
+            self, user, user_factory, package_factory, organization_factory
     ):
         """
         A normal user can't use fq creator_user_id and drafts to get draft
         datasets for another user.
         """
-        user = factories.User()
-        other_user = factories.User()
-        org = factories.Organization(user=user)
-        factories.Dataset(user=user, name="dataset")
-        factories.Dataset(user=other_user, name="other-dataset")
-        factories.Dataset(user=user, state="deleted", name="deleted-dataset")
-        factories.Dataset(user=user, state="draft", name="draft-dataset")
-        factories.Dataset(
+        other_user = user_factory()
+        org = organization_factory(user=user)
+        package_factory(user=user, name="dataset")
+        package_factory(user=other_user, name="other-dataset")
+        package_factory(user=user, state="deleted", name="deleted-dataset")
+        package_factory(user=user, state="draft", name="draft-dataset")
+        package_factory(
             user=other_user, state="draft", name="other-draft-dataset"
         )
-        factories.Dataset(
+        package_factory(
             user=user,
             private=True,
             owner_org=org["name"],
@@ -1749,23 +1680,22 @@ class TestPackageSearch(object):
         assert len(results) == 0
 
     def test_package_search_with_fq_for_creator_user_id_and_drafts_and_include_drafts_option_will_not_include_drafts_for_other_user(
-        self,
+            self, user, user_factory, package_factory, organization_factory
     ):
         """
         A normal user can't use fq creator_user_id and drafts and the
         include_drafts option to get draft datasets for another user.
         """
-        user = factories.User()
-        other_user = factories.User()
-        org = factories.Organization(user=user)
-        factories.Dataset(user=user, name="dataset")
-        factories.Dataset(user=other_user, name="other-dataset")
-        factories.Dataset(user=user, state="deleted", name="deleted-dataset")
-        factories.Dataset(user=user, state="draft", name="draft-dataset")
-        factories.Dataset(
+        other_user = user_factory()
+        org = organization_factory(user=user)
+        package_factory(user=user, name="dataset")
+        package_factory(user=other_user, name="other-dataset")
+        package_factory(user=user, state="deleted", name="deleted-dataset")
+        package_factory(user=user, state="draft", name="draft-dataset")
+        package_factory(
             user=other_user, state="draft", name="other-draft-dataset"
         )
-        factories.Dataset(
+        package_factory(
             user=user,
             private=True,
             owner_org=org["name"],
@@ -1780,25 +1710,24 @@ class TestPackageSearch(object):
         assert len(results) == 0
 
     def test_package_search_with_fq_for_creator_user_id_and_include_drafts_option_will_not_include_drafts_for_other_user(
-        self,
+            self, user, user_factory, package_factory, organization_factory
     ):
         """
         A normal user can't use fq creator_user_id and the include_drafts
         option to get draft datasets for another user.
         """
-        user = factories.User()
-        other_user = factories.User()
-        org = factories.Organization(user=user)
-        factories.Dataset(user=user, name="dataset")
-        other_dataset = factories.Dataset(
+        other_user = user_factory()
+        org = organization_factory(user=user)
+        package_factory(user=user, name="dataset")
+        other_dataset = package_factory(
             user=other_user, name="other-dataset"
         )
-        factories.Dataset(user=user, state="deleted", name="deleted-dataset")
-        factories.Dataset(user=user, state="draft", name="draft-dataset")
-        other_draft_dataset = factories.Dataset(
+        package_factory(user=user, state="deleted", name="deleted-dataset")
+        package_factory(user=user, state="draft", name="draft-dataset")
+        other_draft_dataset = package_factory(
             user=other_user, state="draft", name="other-draft-dataset"
         )
-        factories.Dataset(
+        package_factory(
             user=user,
             private=True,
             owner_org=org["name"],
@@ -1816,25 +1745,23 @@ class TestPackageSearch(object):
         assert other_draft_dataset["name"] not in names
 
     def test_package_search_with_fq_for_create_user_id_will_include_drafts_for_other_users_for_sysadmin(
-        self,
+            self, user, user_factory, sysadmin, package_factory, organization_factory
     ):
         """
         Sysadmins can use fq to get draft datasets for another user.
         """
-        user = factories.User()
-        sysadmin = factories.Sysadmin()
-        other_user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(user=user, name="dataset")
-        factories.Dataset(user=other_user, name="other-dataset")
-        factories.Dataset(user=user, state="deleted", name="deleted-dataset")
-        draft_dataset = factories.Dataset(
+        other_user = user_factory()
+        org = organization_factory(user=user)
+        dataset = package_factory(user=user, name="dataset")
+        package_factory(user=other_user, name="other-dataset")
+        package_factory(user=user, state="deleted", name="deleted-dataset")
+        draft_dataset = package_factory(
             user=user, state="draft", name="draft-dataset"
         )
-        factories.Dataset(
+        package_factory(
             user=other_user, state="draft", name="other-draft-dataset"
         )
-        factories.Dataset(
+        package_factory(
             user=user,
             private=True,
             owner_org=org["name"],
@@ -1851,16 +1778,15 @@ class TestPackageSearch(object):
         assert dataset["name"] not in names
         assert draft_dataset["name"] in names
 
-    def test_package_search_private_with_include_private(self):
-        """
+    def test_package_search_private_with_include_private(self, package_factory, user, organization_factory):
+        """ user
         package_search() can return private datasets when
         `include_private=True`
         """
-        user = factories.User()
-        org = factories.Organization(user=user)
-        factories.Dataset(user=user, state="deleted")
-        factories.Dataset(user=user, state="draft")
-        private_dataset = factories.Dataset(
+        org = organization_factory(user=user)
+        package_factory(user=user, state="deleted")
+        package_factory(user=user, state="draft")
+        private_dataset = package_factory(
             user=user, private=True, owner_org=org["name"]
         )
 
@@ -1871,13 +1797,12 @@ class TestPackageSearch(object):
         assert [r["name"] for r in results] == [private_dataset["name"]]
 
     def test_package_search_private_with_include_private_wont_show_other_orgs_private(
-        self,
+            self, user, user_factory, package_factory, organization_factory
     ):
-        user = factories.User()
-        user2 = factories.User()
-        org = factories.Organization(user=user)
-        org2 = factories.Organization(user=user2)
-        private_dataset = factories.Dataset(
+        user2 = user_factory()
+        org = organization_factory(user=user)
+        org2 = organization_factory(user=user2)
+        private_dataset = package_factory(
             user=user2, private=True, owner_org=org2["name"]
         )
 
@@ -1887,11 +1812,9 @@ class TestPackageSearch(object):
 
         assert [r["name"] for r in results] == []
 
-    def test_package_search_private_with_include_private_syadmin(self):
-        user = factories.User()
-        sysadmin = factories.Sysadmin()
-        org = factories.Organization(user=user)
-        private_dataset = factories.Dataset(
+    def test_package_search_private_with_include_private_syadmin(self, user, sysadmin, package_factory, organization_factory):
+        org = organization_factory(user=user)
+        private_dataset = package_factory(
             user=user, private=True, owner_org=org["name"]
         )
 
@@ -1918,8 +1841,8 @@ class TestPackageSearch(object):
 @pytest.mark.ckan_config("ckan.plugins", "example_idatasetform")
 @pytest.mark.usefixtures("clean_db", "with_plugins", "with_request_context")
 class TestPackageAutocompleteWithDatasetForm(object):
-    def test_custom_schema_returned(self):
-        dataset1 = factories.Dataset(custom_text="foo")
+    def test_custom_schema_returned(self, package_factory):
+        dataset1 = package_factory(custom_text="foo")
 
         query = helpers.call_action(
             "package_search", q="id:{0}".format(dataset1["id"])
@@ -1928,8 +1851,8 @@ class TestPackageAutocompleteWithDatasetForm(object):
         assert query["results"][0]["id"] == dataset1["id"]
         assert query["results"][0]["custom_text"] == "foo"
 
-    def test_custom_schema_not_returned(self):
-        dataset1 = factories.Dataset(custom_text="foo")
+    def test_custom_schema_not_returned(self, package_factory):
+        dataset1 = package_factory(custom_text="foo")
 
         query = helpers.call_action(
             "package_search",
@@ -1983,16 +1906,15 @@ class TestBadLimitQueryParameters(object):
 class TestOrganizationListForUser(object):
     """Functional tests for the organization_list_for_user() action function."""
 
-    def test_when_user_is_not_a_member_of_any_organizations(self):
+    def test_when_user_is_not_a_member_of_any_organizations(self, user, organization_factory):
         """
         When the user isn't a member of any organizations (in any capacity)
         organization_list_for_user() should return an empty list.
         """
-        user = factories.User()
         context = {"user": user["name"]}
 
         # Create an organization so we can test that it does not get returned.
-        factories.Organization()
+        organization_factory()
 
         organizations = helpers.call_action(
             "organization_list_for_user", context=context
@@ -2000,19 +1922,17 @@ class TestOrganizationListForUser(object):
 
         assert organizations == []
 
-    def test_when_user_is_an_admin_of_one_organization(self):
+    def test_when_user_is_an_admin_of_one_organization(self, user, organization, organization_factory):
         """
         When the user is an admin of one organization
         organization_list_for_user() should return a list of just that one
         organization.
         """
-        user = factories.User()
         context = {"user": user["name"]}
-        organization = factories.Organization()
 
         # Create a second organization just so we can test that it does not get
         # returned.
-        factories.Organization()
+        organization_factory()
 
         helpers.call_action(
             "member_create",
@@ -2029,21 +1949,20 @@ class TestOrganizationListForUser(object):
         assert len(organizations) == 1
         assert organizations[0]["id"] == organization["id"]
 
-    def test_when_user_is_an_admin_of_three_organizations(self):
+    def test_when_user_is_an_admin_of_three_organizations(self, user, organization_factory):
         """
         When the user is an admin of three organizations
         organization_list_for_user() should return a list of all three
         organizations.
         """
-        user = factories.User()
         context = {"user": user["name"]}
-        organization_1 = factories.Organization()
-        organization_2 = factories.Organization()
-        organization_3 = factories.Organization()
+        organization_1 = organization_factory()
+        organization_2 = organization_factory()
+        organization_3 = organization_factory()
 
         # Create a second organization just so we can test that it does not get
         # returned.
-        factories.Organization()
+        organization_factory()
 
         # Make the user an admin of all three organizations:
         for organization in (organization_1, organization_2, organization_3):
@@ -2064,7 +1983,7 @@ class TestOrganizationListForUser(object):
         for organization in (organization_1, organization_2, organization_3):
             assert organization["id"] in ids
 
-    def test_when_permissions_extend_to_sub_organizations(self):
+    def test_when_permissions_extend_to_sub_organizations(self, user, organization_factory):
         """
 
         When the user is an admin of one organization
@@ -2072,16 +1991,15 @@ class TestOrganizationListForUser(object):
         organization.
 
         """
-        user = factories.User()
         context = {"user": user["name"]}
         user["capacity"] = "admin"
-        top_organization = factories.Organization(users=[user])
-        middle_organization = factories.Organization(users=[user])
-        bottom_organization = factories.Organization()
+        top_organization = organization_factory(users=[user])
+        middle_organization = organization_factory(users=[user])
+        bottom_organization = organization_factory()
 
         # Create another organization just so we can test that it does not get
         # returned.
-        factories.Organization()
+        organization_factory()
 
         helpers.call_action(
             "member_create",
@@ -2106,15 +2024,12 @@ class TestOrganizationListForUser(object):
         org_ids = set(org["id"] for org in organizations)
         assert bottom_organization["id"] in org_ids
 
-    def test_does_return_members(self):
+    def test_does_return_members(self, user, organization):
         """
         By default organization_list_for_user() should return organizations
         that the user is just a member (not an admin) of.
         """
-        user = factories.User()
         context = {"user": user["name"]}
-        organization = factories.Organization()
-
         helpers.call_action(
             "member_create",
             id=organization["id"],
@@ -2129,15 +2044,12 @@ class TestOrganizationListForUser(object):
 
         assert [org["id"] for org in organizations] == [organization["id"]]
 
-    def test_does_return_editors(self):
+    def test_does_return_editors(self, user, organization):
         """
         By default organization_list_for_user() should return organizations
         that the user is just an editor (not an admin) of.
         """
-        user = factories.User()
         context = {"user": user["name"]}
-        organization = factories.Organization()
-
         helpers.call_action(
             "member_create",
             id=organization["id"],
@@ -2152,15 +2064,12 @@ class TestOrganizationListForUser(object):
 
         assert [org["id"] for org in organizations] == [organization["id"]]
 
-    def test_editor_permission(self):
+    def test_editor_permission(self, user, organization):
         """
         organization_list_for_user() should return organizations that the user
         is an editor of if passed a permission that belongs to the editor role.
         """
-        user = factories.User()
         context = {"user": user["name"]}
-        organization = factories.Organization()
-
         helpers.call_action(
             "member_create",
             id=organization["id"],
@@ -2177,15 +2086,12 @@ class TestOrganizationListForUser(object):
 
         assert [org["id"] for org in organizations] == [organization["id"]]
 
-    def test_member_permission(self):
+    def test_member_permission(self, user, organization):
         """
         organization_list_for_user() should return organizations that the user
         is a member of if passed a permission that belongs to the member role.
         """
-        user = factories.User()
         context = {"user": user["name"]}
-        organization = factories.Organization()
-
         helpers.call_action(
             "member_create",
             id=organization["id"],
@@ -2200,7 +2106,7 @@ class TestOrganizationListForUser(object):
 
         assert [org["id"] for org in organizations] == [organization["id"]]
 
-    def test_invalid_permission(self):
+    def test_invalid_permission(self, user, organization, organization_factory):
         """
         organization_list_for_user() should return an empty list if passed a
         non-existent or invalid permission.
@@ -2210,10 +2116,8 @@ class TestOrganizationListForUser(object):
         organization - admins have all permissions, including permissions that
         don't exist.
         """
-        user = factories.User()
         context = {"user": user["name"]}
-        organization = factories.Organization()
-        factories.Organization()
+        organization_factory()
         helpers.call_action(
             "member_create",
             id=organization["id"],
@@ -2231,16 +2135,15 @@ class TestOrganizationListForUser(object):
 
         assert organizations == []
 
-    def test_that_it_does_not_return_groups(self):
+    def test_that_it_does_not_return_groups(self, group_factory, user):
         """
         organization_list_for_user() should not return groups that the user is
         a member, editor or admin of.
         """
-        user = factories.User()
         context = {"user": user["name"]}
-        group_1 = factories.Group()
-        group_2 = factories.Group()
-        group_3 = factories.Group()
+        group_1 = group_factory()
+        group_2 = group_factory()
+        group_3 = group_factory()
         helpers.call_action(
             "member_create",
             id=group_1["id"],
@@ -2269,14 +2172,12 @@ class TestOrganizationListForUser(object):
 
         assert organizations == []
 
-    def test_that_it_does_not_return_previous_memberships(self):
+    def test_that_it_does_not_return_previous_memberships(self, user, organization):
         """
         organization_list_for_user() should return organizations that the user
         was previously an admin of.
         """
-        user = factories.User()
         context = {"user": user["name"]}
-        organization = factories.Organization()
 
         # Make the user an admin of the organization.
         helpers.call_action(
@@ -2301,14 +2202,12 @@ class TestOrganizationListForUser(object):
 
         assert organizations == []
 
-    def test_when_user_is_sysadmin(self):
+    def test_when_user_is_sysadmin(self, sysadmin, organization):
         """
         When the user is a sysadmin organization_list_for_user() should just
         return all organizations, even if the user is not a member of them.
         """
-        user = factories.Sysadmin()
-        context = {"user": user["name"]}
-        organization = factories.Organization()
+        context = {"user": sysadmin["name"]}
 
         organizations = helpers.call_action(
             "organization_list_for_user", context=context
@@ -2316,14 +2215,12 @@ class TestOrganizationListForUser(object):
 
         assert [org["id"] for org in organizations] == [organization["id"]]
 
-    def test_that_it_does_not_return_deleted_organizations(self):
+    def test_that_it_does_not_return_deleted_organizations(self, user, organization):
         """
         organization_list_for_user() should not return deleted organizations
         that the user was an admin of.
         """
-        user = factories.User()
         context = {"user": user["name"]}
-        organization = factories.Organization()
 
         # Make the user an admin of the organization.
         helpers.call_action(
@@ -2345,37 +2242,36 @@ class TestOrganizationListForUser(object):
 
         assert organizations == []
 
-    def test_with_no_authorized_user(self):
+    def test_with_no_authorized_user(self, organization):
         """
         organization_list_for_user() should return an empty list if there's no
         authorized user. Users who aren't logged-in don't have any permissions.
         """
         # Create an organization so we can test that it doesn't get returned.
-        organization = factories.Organization()
 
         organizations = helpers.call_action("organization_list_for_user")
 
         assert organizations == []
 
-    def test_organization_list_for_user_returns_all_roles(self):
+    def test_organization_list_for_user_returns_all_roles(self, user_factory, organization_factory):
 
-        user1 = factories.User()
-        user2 = factories.User()
-        user3 = factories.User()
+        user1 = user_factory()
+        user2 = user_factory()
+        user3 = user_factory()
 
-        org1 = factories.Organization(
+        org1 = organization_factory(
             users=[
                 {"name": user1["name"], "capacity": "admin"},
                 {"name": user2["name"], "capacity": "editor"},
             ]
         )
-        org2 = factories.Organization(
+        org2 = organization_factory(
             users=[
                 {"name": user1["name"], "capacity": "member"},
                 {"name": user2["name"], "capacity": "member"},
             ]
         )
-        org3 = factories.Organization(
+        org3 = organization_factory(
             users=[{"name": user1["name"], "capacity": "editor"}]
         )
 
@@ -2405,9 +2301,8 @@ class TestOrganizationListForUser(object):
 @pytest.mark.ckan_config("ckan.plugins", "image_view")
 @pytest.mark.usefixtures("clean_db", "with_plugins")
 class TestShowResourceView(object):
-    def test_resource_view_show(self):
+    def test_resource_view_show(self, resource):
 
-        resource = factories.Resource()
         resource_view = {
             "resource_id": resource["id"],
             "view_type": u"image_view",
@@ -2524,8 +2419,8 @@ def remove_pseudo_users(user_list):
 
 @pytest.mark.usefixtures("clean_db")
 class TestTagShow(object):
-    def test_tag_show_for_free_tag(self):
-        dataset = factories.Dataset(tags=[{"name": "acid-rain"}])
+    def test_tag_show_for_free_tag(self, package_factory):
+        dataset = package_factory(tags=[{"name": "acid-rain"}])
         tag_in_dataset = dataset["tags"][0]
 
         tag_shown = helpers.call_action("tag_show", id="acid-rain")
@@ -2537,8 +2432,8 @@ class TestTagShow(object):
         assert "packages" not in tag_shown
 
     @pytest.mark.usefixtures("clean_index")
-    def test_tag_show_with_datasets(self):
-        dataset = factories.Dataset(tags=[{"name": "acid-rain"}])
+    def test_tag_show_with_datasets(self, package_factory):
+        dataset = package_factory(tags=[{"name": "acid-rain"}])
 
         tag_shown = helpers.call_action(
             "tag_show", id="acid-rain", include_datasets=True
@@ -2550,10 +2445,10 @@ class TestTagShow(object):
         with pytest.raises(logic.NotFound):
             helpers.call_action("tag_show", id="does-not-exist")
 
-    def test_tag_show_for_flexible_tag(self):
+    def test_tag_show_for_flexible_tag(self, package_factory):
         # A 'flexible' tag is one with spaces, some punctuation
         # and foreign characters in its name
-        dataset = factories.Dataset(tags=[{"name": u"Flexible. \u30a1"}])
+        dataset = package_factory(tags=[{"name": u"Flexible. \u30a1"}])
 
         tag_shown = helpers.call_action(
             "tag_show", id=u"Flexible. \u30a1", include_datasets=True
@@ -2563,9 +2458,9 @@ class TestTagShow(object):
         assert tag_shown["display_name"] == u"Flexible. \u30a1"
         assert [d["name"] for d in tag_shown["packages"]] == [dataset["name"]]
 
-    def test_tag_show_for_vocab_tag(self):
-        vocab = factories.Vocabulary(tags=[dict(name="acid-rain")])
-        dataset = factories.Dataset(tags=vocab["tags"])
+    def test_tag_show_for_vocab_tag(self, package_factory, vocabulary_factory):
+        vocab = vocabulary_factory(tags=[dict(name="acid-rain")])
+        dataset = package_factory(tags=vocab["tags"])
         tag_in_dataset = dataset["tags"][0]
 
         tag_shown = helpers.call_action(
@@ -2584,16 +2479,16 @@ class TestTagShow(object):
 
 @pytest.mark.usefixtures("clean_db")
 class TestTagList(object):
-    def test_tag_list(self):
-        factories.Dataset(tags=[{"name": "acid-rain"}, {"name": "pollution"}])
-        factories.Dataset(tags=[{"name": "pollution"}])
+    def test_tag_list(self, package_factory):
+        package_factory(tags=[{"name": "acid-rain"}, {"name": "pollution"}])
+        package_factory(tags=[{"name": "pollution"}])
 
         tag_list = helpers.call_action("tag_list")
 
         assert set(tag_list) == set(("acid-rain", "pollution"))
 
-    def test_tag_list_all_fields(self):
-        factories.Dataset(tags=[{"name": "acid-rain"}])
+    def test_tag_list_all_fields(self, package_factory):
+        package_factory(tags=[{"name": "acid-rain"}])
 
         tag_list = helpers.call_action("tag_list", all_fields=True)
 
@@ -2601,18 +2496,18 @@ class TestTagList(object):
         assert tag_list[0]["display_name"] == "acid-rain"
         assert "packages" not in tag_list
 
-    def test_tag_list_with_flexible_tag(self):
+    def test_tag_list_with_flexible_tag(self, package_factory):
         # A 'flexible' tag is one with spaces, punctuation (apart from commas)
         # and foreign characters in its name
         flexible_tag = u"Flexible. \u30a1"
-        factories.Dataset(tags=[{"name": flexible_tag}])
+        package_factory(tags=[{"name": flexible_tag}])
 
         tag_list = helpers.call_action("tag_list", all_fields=True)
 
         assert tag_list[0]["name"] == flexible_tag
 
-    def test_tag_list_with_vocab(self):
-        vocab = factories.Vocabulary(
+    def test_tag_list_with_vocab(self, vocabulary_factory):
+        vocab = vocabulary_factory(
             tags=[dict(name="acid-rain"), dict(name="pollution")]
         )
 
@@ -2627,10 +2522,8 @@ class TestTagList(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestMembersList(object):
-    def test_dataset_delete_marks_membership_of_group_as_deleted(self):
-        sysadmin = factories.Sysadmin()
-        group = factories.Group()
-        dataset = factories.Dataset(groups=[{"name": group["name"]}])
+    def test_dataset_delete_marks_membership_of_group_as_deleted(self, sysadmin, group, package_factory):
+        dataset = package_factory(groups=[{"name": group["name"]}])
         context = {"user": sysadmin["name"]}
 
         group_members = helpers.call_action(
@@ -2649,14 +2542,12 @@ class TestMembersList(object):
 
         assert len(group_members) == 0
 
-    def test_dataset_delete_marks_membership_of_org_as_deleted(self):
-        sysadmin = factories.Sysadmin()
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org["id"])
+    def test_dataset_delete_marks_membership_of_org_as_deleted(self, sysadmin, organization, package_factory):
+        dataset = package_factory(owner_org=organization["id"])
         context = {"user": sysadmin["name"]}
 
         org_members = helpers.call_action(
-            "member_list", context, id=org["id"], object_type="package"
+            "member_list", context, id=organization["id"], object_type="package"
         )
 
         assert len(org_members) == 1
@@ -2666,15 +2557,12 @@ class TestMembersList(object):
         helpers.call_action("package_delete", context, id=dataset["id"])
 
         org_members = helpers.call_action(
-            "member_list", context, id=org["id"], object_type="package"
+            "member_list", context, id=organization["id"], object_type="package"
         )
 
         assert len(org_members) == 0
 
-    def test_user_delete_marks_membership_of_group_as_deleted(self):
-        sysadmin = factories.Sysadmin()
-        group = factories.Group()
-        user = factories.User()
+    def test_user_delete_marks_membership_of_group_as_deleted(self, user, sysadmin, group):
         context = {"user": sysadmin["name"]}
 
         member_dict = {
@@ -2708,15 +2596,11 @@ class TestMembersList(object):
 
         assert len(group_members) == 0
 
-    def test_user_delete_marks_membership_of_org_as_deleted(self):
-        sysadmin = factories.Sysadmin()
-        org = factories.Organization()
-        user = factories.User()
+    def test_user_delete_marks_membership_of_org_as_deleted(self, user, sysadmin, organization):
         context = {"user": sysadmin["name"]}
-
         member_dict = {
             "username": user["id"],
-            "id": org["id"],
+            "id": organization["id"],
             "role": "member",
         }
         helpers.call_action(
@@ -2726,7 +2610,7 @@ class TestMembersList(object):
         org_members = helpers.call_action(
             "member_list",
             context,
-            id=org["id"],
+            id=organization["id"],
             object_type="user",
             capacity="member",
         )
@@ -2740,7 +2624,7 @@ class TestMembersList(object):
         org_members = helpers.call_action(
             "member_list",
             context,
-            id=org["id"],
+            id=organization["id"],
             object_type="user",
             capacity="member",
         )
@@ -2750,13 +2634,11 @@ class TestMembersList(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollow(object):
-    def test_followee_list(self):
+    def test_followee_list(self, user, group_factory):
 
-        group1 = factories.Group(title="Finance")
-        group2 = factories.Group(title="Environment")
-        group3 = factories.Group(title="Education")
-
-        user = factories.User()
+        group1 = group_factory(title="Finance")
+        group2 = group_factory(title="Environment")
+        group3 = group_factory(title="Education")
 
         context = {"user": user["name"]}
 
@@ -2773,13 +2655,11 @@ class TestFollow(object):
             "Finance",
         ]
 
-    def test_followee_list_with_q(self):
+    def test_followee_list_with_q(self, user, group_factory):
 
-        group1 = factories.Group(title="Finance")
-        group2 = factories.Group(title="Environment")
-        group3 = factories.Group(title="Education")
-
-        user = factories.User()
+        group1 = group_factory(title="Finance")
+        group2 = group_factory(title="Environment")
+        group3 = group_factory(title="Education")
 
         context = {"user": user["name"]}
 
@@ -2870,14 +2750,12 @@ def _seconds_since_timestamp(timestamp, format_):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestActivityShow(object):
-    def test_simple_without_data(self):
-        dataset = factories.Dataset()
-        user = factories.User()
-        activity = factories.Activity(
+    def test_simple_without_data(self, user, package, activity_factory):
+        activity = activity_factory(
             user_id=user["id"],
-            object_id=dataset["id"],
+            object_id=package["id"],
             activity_type="new package",
-            data={"package": copy.deepcopy(dataset), "actor": "Mr Someone"},
+            data={"package": copy.deepcopy(package), "actor": "Mr Someone"},
         )
         activity_shown = helpers.call_action(
             "activity_show", id=activity["id"], include_data=False
@@ -2889,18 +2767,16 @@ class TestActivityShow(object):
             )
             < 10
         )
-        assert activity_shown["object_id"] == dataset["id"]
-        assert activity_shown["data"] == {"package": {"title": dataset["title"]}}
+        assert activity_shown["object_id"] == package["id"]
+        assert activity_shown["data"] == {"package": {"title": package["title"]}}
         assert activity_shown["activity_type"] == u"new package"
 
-    def test_simple_with_data(self):
-        dataset = factories.Dataset()
-        user = factories.User()
-        activity = factories.Activity(
+    def test_simple_with_data(self, user, package, activity_factory):
+        activity = activity_factory(
             user_id=user["id"],
-            object_id=dataset["id"],
+            object_id=package["id"],
             activity_type="new package",
-            data={"package": copy.deepcopy(dataset), "actor": "Mr Someone"},
+            data={"package": copy.deepcopy(package), "actor": "Mr Someone"},
         )
         activity_shown = helpers.call_action(
             "activity_show", id=activity["id"], include_data=True
@@ -2912,9 +2788,9 @@ class TestActivityShow(object):
             )
             < 10
         )
-        assert activity_shown["object_id"] == dataset["id"]
+        assert activity_shown["object_id"] == package["id"]
         assert activity_shown["data"] == {
-            "package": dataset,
+            "package": package,
             "actor": "Mr Someone",
         }
         assert activity_shown["activity_type"] == u"new package"
@@ -2930,9 +2806,8 @@ def _clear_activities():
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestPackageActivityList(object):
-    def test_create_dataset(self):
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+    def test_create_dataset(self, user, package_factory):
+        dataset = package_factory(user=user)
 
         activities = helpers.call_action(
             "package_activity_list", id=dataset["id"]
@@ -2945,10 +2820,9 @@ class TestPackageActivityList(object):
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
         assert "extras" not in activities[0]["data"]["package"]
 
-    def test_change_dataset(self):
-        user = factories.User()
+    def test_change_dataset(self, user, package_factory):
         _clear_activities()
-        dataset = factories.Dataset(user=user)
+        dataset = package_factory(user=user)
         original_title = dataset["title"]
         dataset["title"] = "Dataset with changed title"
         helpers.call_action(
@@ -2974,9 +2848,8 @@ class TestPackageActivityList(object):
         assert activities[1]["activity_type"] == "new package"
         assert activities[1]["data"]["package"]["title"] == original_title
 
-    def test_change_dataset_add_extra(self):
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+    def test_change_dataset_add_extra(self, user, package_factory):
+        dataset = package_factory(user=user)
         _clear_activities()
         dataset["extras"].append(dict(key="rating", value="great"))
         helpers.call_action(
@@ -2994,9 +2867,8 @@ class TestPackageActivityList(object):
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
         assert "extras" not in activities[0]["data"]["package"]
 
-    def test_change_dataset_change_extra(self):
-        user = factories.User()
-        dataset = factories.Dataset(
+    def test_change_dataset_change_extra(self, user, package_factory):
+        dataset = package_factory(
             user=user, extras=[dict(key="rating", value="great")]
         )
         _clear_activities()
@@ -3016,9 +2888,8 @@ class TestPackageActivityList(object):
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
         assert "extras" not in activities[0]["data"]["package"]
 
-    def test_change_dataset_delete_extra(self):
-        user = factories.User()
-        dataset = factories.Dataset(
+    def test_change_dataset_delete_extra(self, user, package_factory):
+        dataset = package_factory(
             user=user, extras=[dict(key="rating", value="great")]
         )
         _clear_activities()
@@ -3038,11 +2909,10 @@ class TestPackageActivityList(object):
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
         assert "extras" not in activities[0]["data"]["package"]
 
-    def test_change_dataset_add_resource(self):
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+    def test_change_dataset_add_resource(self, user, package_factory, resource_factory):
+        dataset = package_factory(user=user)
         _clear_activities()
-        resource = factories.Resource(package_id=dataset["id"], user=user)
+        resource = resource_factory(package_id=dataset["id"], user=user)
 
         activities = helpers.call_action(
             "package_activity_list", id=dataset["id"]
@@ -3056,9 +2926,8 @@ class TestPackageActivityList(object):
         # NB the detail is not included - that is only added in by
         # activity_list_to_html()
 
-    def test_change_dataset_change_resource(self):
-        user = factories.User()
-        dataset = factories.Dataset(
+    def test_change_dataset_change_resource(self, user, package_factory):
+        dataset = package_factory(
             user=user,
             resources=[dict(url="https://example.com/foo.csv", format="csv")],
         )
@@ -3078,9 +2947,8 @@ class TestPackageActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_change_dataset_delete_resource(self):
-        user = factories.User()
-        dataset = factories.Dataset(
+    def test_change_dataset_delete_resource(self, user, package_factory):
+        dataset = package_factory(
             user=user,
             resources=[dict(url="https://example.com/foo.csv", format="csv")],
         )
@@ -3100,9 +2968,8 @@ class TestPackageActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_change_dataset_add_tag(self):
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+    def test_change_dataset_add_tag(self, user, package_factory):
+        dataset = package_factory(user=user)
         _clear_activities()
         dataset["tags"].append(dict(name="checked"))
         helpers.call_action(
@@ -3119,9 +2986,8 @@ class TestPackageActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_delete_tag_from_dataset(self):
-        user = factories.User()
-        dataset = factories.Dataset(user=user, tags=[dict(name="checked")])
+    def test_delete_tag_from_dataset(self, user, package_factory):
+        dataset = package_factory(user=user, tags=[dict(name="checked")])
         _clear_activities()
         dataset["tags"] = []
         helpers.call_action(
@@ -3138,9 +3004,8 @@ class TestPackageActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_delete_dataset(self):
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+    def test_delete_dataset(self, user, package_factory):
+        dataset = package_factory(user=user)
         _clear_activities()
         helpers.call_action(
             "package_delete", context={"user": user["name"]}, **dataset
@@ -3156,11 +3021,10 @@ class TestPackageActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_private_dataset_has_no_activity(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
+    def test_private_dataset_has_no_activity(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
         _clear_activities()
-        dataset = factories.Dataset(
+        dataset = package_factory(
             private=True, owner_org=org["id"], user=user
         )
         dataset["tags"] = []
@@ -3173,11 +3037,10 @@ class TestPackageActivityList(object):
         )
         assert [activity["activity_type"] for activity in activities] == []
 
-    def test_private_dataset_delete_has_no_activity(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
+    def test_private_dataset_delete_has_no_activity(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
         _clear_activities()
-        dataset = factories.Dataset(
+        dataset = package_factory(
             private=True, owner_org=org["id"], user=user
         )
         helpers.call_action(
@@ -3190,15 +3053,14 @@ class TestPackageActivityList(object):
         assert [activity["activity_type"] for activity in activities] == []
 
     def _create_bulk_types_activities(self, types):
-        dataset = factories.Dataset()
         from ckan import model
-
-        user = factories.User()
+        user = factories.UserFactory()
+        package = factories.PackageFactory()
 
         objs = [
             model.Activity(
                 user_id=user['id'],
-                object_id=dataset["id"],
+                object_id=package["id"],
                 activity_type=activity_type,
                 data=None,
             )
@@ -3206,7 +3068,7 @@ class TestPackageActivityList(object):
         ]
         model.Session.add_all(objs)
         model.repo.commit_and_remove()
-        return dataset["id"]
+        return package["id"]
 
     def test_error_bad_search(self):
         with pytest.raises(logic.ValidationError):
@@ -3256,15 +3118,13 @@ class TestPackageActivityList(object):
         assert len(activities_not_deleted) == 4
 
     def _create_bulk_package_activities(self, count):
-        dataset = factories.Dataset()
         from ckan import model
-
-        user = factories.User()
-
+        user = factories.UserFactory()
+        package = factories.PackageFactory()
         objs = [
             model.Activity(
                 user_id=user['id'],
-                object_id=dataset["id"],
+                object_id=package["id"],
                 activity_type=None,
                 data=None,
             )
@@ -3272,7 +3132,7 @@ class TestPackageActivityList(object):
         ]
         model.Session.add_all(objs)
         model.repo.commit_and_remove()
-        return dataset["id"]
+        return package["id"]
 
     def test_limit_default(self):
         id = self._create_bulk_package_activities(35)
@@ -3294,32 +3154,29 @@ class TestPackageActivityList(object):
         )
         assert len(results) == 7  # i.e. ckan.activity_list_limit_max
 
-    def test_normal_user_doesnt_see_hidden_activities(self):
+    def test_normal_user_doesnt_see_hidden_activities(self, package):
         # activity is 'hidden' because dataset is created by site_user
-        dataset = factories.Dataset()
 
         activities = helpers.call_action(
-            "package_activity_list", id=dataset["id"]
+            "package_activity_list", id=package["id"]
         )
         assert [activity["activity_type"] for activity in activities] == []
 
-    def test_sysadmin_user_doesnt_see_hidden_activities_by_default(self):
+    def test_sysadmin_user_doesnt_see_hidden_activities_by_default(self, package):
         # activity is 'hidden' because dataset is created by site_user
-        dataset = factories.Dataset()
 
         activities = helpers.call_action(
-            "package_activity_list", id=dataset["id"]
+            "package_activity_list", id=package["id"]
         )
         assert [activity["activity_type"] for activity in activities] == []
 
-    def test_sysadmin_user_can_include_hidden_activities(self):
+    def test_sysadmin_user_can_include_hidden_activities(self, package):
         # activity is 'hidden' because dataset is created by site_user
-        dataset = factories.Dataset()
 
         activities = helpers.call_action(
             "package_activity_list",
             include_hidden_activity=True,
-            id=dataset["id"],
+            id=package["id"],
         )
         assert [activity["activity_type"] for activity in activities] == [
             "new package"
@@ -3328,8 +3185,7 @@ class TestPackageActivityList(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestUserActivityList(object):
-    def test_create_user(self):
-        user = factories.User()
+    def test_create_user(self, user):
 
         activities = helpers.call_action("user_activity_list", id=user["id"])
         assert [activity["activity_type"] for activity in activities] == [
@@ -3338,10 +3194,9 @@ class TestUserActivityList(object):
         assert activities[0]["user_id"] == user["id"]
         assert activities[0]["object_id"] == user["id"]
 
-    def test_create_dataset(self):
-        user = factories.User()
+    def test_create_dataset(self, user, package_factory):
         _clear_activities()
-        dataset = factories.Dataset(user=user)
+        dataset = package_factory(user=user)
 
         activities = helpers.call_action("user_activity_list", id=user["id"])
         assert [activity["activity_type"] for activity in activities] == [
@@ -3351,14 +3206,12 @@ class TestUserActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_dataset_changed_by_another_user(self):
-        user = factories.User()
-        another_user = factories.Sysadmin()
-        dataset = factories.Dataset(user=user)
+    def test_dataset_changed_by_another_user(self, user, package_factory, sysadmin):
+        dataset = package_factory(user=user)
         _clear_activities()
         dataset["extras"].append(dict(key="rating", value="great"))
         helpers.call_action(
-            "package_update", context={"user": another_user["name"]}, **dataset
+            "package_update", context={"user": sysadmin["name"]}, **dataset
         )
 
         # the user might have created the dataset, but a change by another
@@ -3366,9 +3219,8 @@ class TestUserActivityList(object):
         activities = helpers.call_action("user_activity_list", id=user["id"])
         assert [activity["activity_type"] for activity in activities] == []
 
-    def test_change_dataset_add_extra(self):
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+    def test_change_dataset_add_extra(self, user, package_factory):
+        dataset = package_factory(user=user)
         _clear_activities()
         dataset["extras"].append(dict(key="rating", value="great"))
         helpers.call_action(
@@ -3383,9 +3235,8 @@ class TestUserActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_change_dataset_add_tag(self):
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+    def test_change_dataset_add_tag(self, user, package_factory):
+        dataset = package_factory(user=user)
         _clear_activities()
         dataset["tags"].append(dict(name="checked"))
         helpers.call_action(
@@ -3400,10 +3251,9 @@ class TestUserActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_create_group(self):
-        user = factories.User()
+    def test_create_group(self, user, group_factory):
         _clear_activities()
-        group = factories.Group(user=user)
+        group = group_factory(user=user)
 
         activities = helpers.call_action("user_activity_list", id=user["id"])
         assert [activity["activity_type"] for activity in activities] == [
@@ -3413,9 +3263,8 @@ class TestUserActivityList(object):
         assert activities[0]["object_id"] == group["id"]
         assert activities[0]["data"]["group"]["title"] == group["title"]
 
-    def test_delete_group_using_group_delete(self):
-        user = factories.User()
-        group = factories.Group(user=user)
+    def test_delete_group_using_group_delete(self, user, group_factory):
+        group = group_factory(user=user)
         _clear_activities()
         helpers.call_action(
             "group_delete", context={"user": user["name"]}, **group
@@ -3429,9 +3278,8 @@ class TestUserActivityList(object):
         assert activities[0]["object_id"] == group["id"]
         assert activities[0]["data"]["group"]["title"] == group["title"]
 
-    def test_delete_group_by_updating_state(self):
-        user = factories.User()
-        group = factories.Group(user=user)
+    def test_delete_group_by_updating_state(self, user, group_factory):
+        group = group_factory(user=user)
         _clear_activities()
         group["state"] = "deleted"
         helpers.call_action(
@@ -3446,10 +3294,9 @@ class TestUserActivityList(object):
         assert activities[0]["object_id"] == group["id"]
         assert activities[0]["data"]["group"]["title"] == group["title"]
 
-    def test_create_organization(self):
-        user = factories.User()
+    def test_create_organization(self, user, organization_factory):
         _clear_activities()
-        org = factories.Organization(user=user)
+        org = organization_factory(user=user)
 
         activities = helpers.call_action("user_activity_list", id=user["id"])
         assert [activity["activity_type"] for activity in activities] == [
@@ -3459,9 +3306,8 @@ class TestUserActivityList(object):
         assert activities[0]["object_id"] == org["id"]
         assert activities[0]["data"]["group"]["title"] == org["title"]
 
-    def test_delete_org_using_organization_delete(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
+    def test_delete_org_using_organization_delete(self, user, organization_factory):
+        org = organization_factory(user=user)
         _clear_activities()
         helpers.call_action(
             "organization_delete", context={"user": user["name"]}, **org
@@ -3475,9 +3321,8 @@ class TestUserActivityList(object):
         assert activities[0]["object_id"] == org["id"]
         assert activities[0]["data"]["group"]["title"] == org["title"]
 
-    def test_delete_org_by_updating_state(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
+    def test_delete_org_by_updating_state(self, user, organization_factory):
+        org = organization_factory(user=user)
         _clear_activities()
         org["state"] = "deleted"
         helpers.call_action(
@@ -3494,8 +3339,7 @@ class TestUserActivityList(object):
 
     def _create_bulk_user_activities(self, count):
         from ckan import model
-
-        user = factories.User()
+        user = factories.UserFactory()
 
         objs = [
             model.Activity(
@@ -3531,9 +3375,8 @@ class TestUserActivityList(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestGroupActivityList(object):
-    def test_create_group(self):
-        user = factories.User()
-        group = factories.Group(user=user)
+    def test_create_group(self, user, group_factory):
+        group = group_factory(user=user)
 
         activities = helpers.call_action("group_activity_list", id=group["id"])
         assert [activity["activity_type"] for activity in activities] == [
@@ -3543,10 +3386,9 @@ class TestGroupActivityList(object):
         assert activities[0]["object_id"] == group["id"]
         assert activities[0]["data"]["group"]["title"] == group["title"]
 
-    def test_change_group(self):
-        user = factories.User()
+    def test_change_group(self, user, group_factory):
         _clear_activities()
-        group = factories.Group(user=user)
+        group = group_factory(user=user)
         original_title = group["title"]
         group["title"] = "Group with changed title"
         helpers.call_action(
@@ -3569,11 +3411,10 @@ class TestGroupActivityList(object):
         assert activities[1]["activity_type"] == "new group"
         assert activities[1]["data"]["group"]["title"] == original_title
 
-    def test_create_dataset(self):
-        user = factories.User()
-        group = factories.Group(user=user)
+    def test_create_dataset(self, user, package_factory, group_factory):
+        group = group_factory(user=user)
         _clear_activities()
-        dataset = factories.Dataset(groups=[{"id": group["id"]}], user=user)
+        dataset = package_factory(groups=[{"id": group["id"]}], user=user)
 
         activities = helpers.call_action("group_activity_list", id=group["id"])
         assert [activity["activity_type"] for activity in activities] == [
@@ -3583,11 +3424,10 @@ class TestGroupActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_change_dataset(self):
-        user = factories.User()
-        group = factories.Group(user=user)
+    def test_change_dataset(self, user, package_factory, group_factory):
+        group = group_factory(user=user)
         _clear_activities()
-        dataset = factories.Dataset(groups=[{"id": group["id"]}], user=user)
+        dataset = package_factory(groups=[{"id": group["id"]}], user=user)
         original_title = dataset["title"]
         dataset["title"] = "Dataset with changed title"
         helpers.call_action(
@@ -3607,10 +3447,9 @@ class TestGroupActivityList(object):
         assert activities[1]["activity_type"] == "new package"
         assert activities[1]["data"]["package"]["title"] == original_title
 
-    def test_change_dataset_add_extra(self):
-        user = factories.User()
-        group = factories.Group(user=user)
-        dataset = factories.Dataset(groups=[{"id": group["id"]}], user=user)
+    def test_change_dataset_add_extra(self, user, package_factory, group_factory):
+        group = group_factory(user=user)
+        dataset = package_factory(groups=[{"id": group["id"]}], user=user)
         _clear_activities()
         dataset["extras"].append(dict(key="rating", value="great"))
         helpers.call_action(
@@ -3625,10 +3464,9 @@ class TestGroupActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_change_dataset_add_tag(self):
-        user = factories.User()
-        group = factories.Group(user=user)
-        dataset = factories.Dataset(groups=[{"id": group["id"]}], user=user)
+    def test_change_dataset_add_tag(self, user, package_factory, group_factory):
+        group = group_factory(user=user)
+        dataset = package_factory(groups=[{"id": group["id"]}], user=user)
         _clear_activities()
         dataset["tags"].append(dict(name="checked"))
         helpers.call_action(
@@ -3643,10 +3481,9 @@ class TestGroupActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_delete_dataset(self):
-        user = factories.User()
-        group = factories.Group(user=user)
-        dataset = factories.Dataset(groups=[{"id": group["id"]}], user=user)
+    def test_delete_dataset(self, user, package_factory, group_factory):
+        group = group_factory(user=user)
+        dataset = package_factory(groups=[{"id": group["id"]}], user=user)
         _clear_activities()
         helpers.call_action(
             "package_delete", context={"user": user["name"]}, **dataset
@@ -3660,10 +3497,9 @@ class TestGroupActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_change_dataset_that_used_to_be_in_the_group(self):
-        user = factories.User()
-        group = factories.Group(user=user)
-        dataset = factories.Dataset(groups=[{"id": group["id"]}], user=user)
+    def test_change_dataset_that_used_to_be_in_the_group(self, user, package_factory, group_factory):
+        group = group_factory(user=user)
+        dataset = package_factory(groups=[{"id": group["id"]}], user=user)
         # remove the dataset from the group
         dataset["groups"] = []
         helpers.call_action(
@@ -3680,10 +3516,9 @@ class TestGroupActivityList(object):
         activities = helpers.call_action("group_activity_list", id=group["id"])
         assert [activity["activity_type"] for activity in activities] == []
 
-    def test_delete_dataset_that_used_to_be_in_the_group(self):
-        user = factories.User()
-        group = factories.Group(user=user)
-        dataset = factories.Dataset(groups=[{"id": group["id"]}], user=user)
+    def test_delete_dataset_that_used_to_be_in_the_group(self, user, package_factory, group_factory):
+        group = group_factory(user=user)
+        dataset = package_factory(groups=[{"id": group["id"]}], user=user)
         # remove the dataset from the group
         dataset["groups"] = []
         dataset["title"] = "Dataset with changed title"
@@ -3708,11 +3543,9 @@ class TestGroupActivityList(object):
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
     def _create_bulk_group_activities(self, count):
-        group = factories.Group()
         from ckan import model
-
-        user = factories.User()
-
+        user = factories.UserFactory()
+        group = factories.GroupFactory()
         objs = [
             model.Activity(
                 user_id=user['id'],
@@ -3744,23 +3577,20 @@ class TestGroupActivityList(object):
         results = helpers.call_action("group_activity_list", id=id, limit="9")
         assert len(results) == 7  # i.e. ckan.activity_list_limit_max
 
-    def test_normal_user_doesnt_see_hidden_activities(self):
+    def test_normal_user_doesnt_see_hidden_activities(self, group):
         # activity is 'hidden' because group is created by site_user
-        group = factories.Group()
 
         activities = helpers.call_action("group_activity_list", id=group["id"])
         assert [activity["activity_type"] for activity in activities] == []
 
-    def test_sysadmin_user_doesnt_see_hidden_activities_by_default(self):
+    def test_sysadmin_user_doesnt_see_hidden_activities_by_default(self, group):
         # activity is 'hidden' because group is created by site_user
-        group = factories.Group()
 
         activities = helpers.call_action("group_activity_list", id=group["id"])
         assert [activity["activity_type"] for activity in activities] == []
 
-    def test_sysadmin_user_can_include_hidden_activities(self):
+    def test_sysadmin_user_can_include_hidden_activities(self, group):
         # activity is 'hidden' because group is created by site_user
-        group = factories.Group()
 
         activities = helpers.call_action(
             "group_activity_list", include_hidden_activity=True, id=group["id"]
@@ -3772,9 +3602,8 @@ class TestGroupActivityList(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestOrganizationActivityList(object):
-    def test_create_organization(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
+    def test_create_organization(self, user, organization_factory):
+        org = organization_factory(user=user)
 
         activities = helpers.call_action(
             "organization_activity_list", id=org["id"]
@@ -3786,10 +3615,9 @@ class TestOrganizationActivityList(object):
         assert activities[0]["object_id"] == org["id"]
         assert activities[0]["data"]["group"]["title"] == org["title"]
 
-    def test_change_organization(self):
-        user = factories.User()
+    def test_change_organization(self, user, organization_factory):
         _clear_activities()
-        org = factories.Organization(user=user)
+        org = organization_factory(user=user)
         original_title = org["title"]
         org["title"] = "Organization with changed title"
         helpers.call_action(
@@ -3814,11 +3642,10 @@ class TestOrganizationActivityList(object):
         assert activities[1]["activity_type"] == "new organization"
         assert activities[1]["data"]["group"]["title"] == original_title
 
-    def test_create_dataset(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
+    def test_create_dataset(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
         _clear_activities()
-        dataset = factories.Dataset(owner_org=org["id"], user=user)
+        dataset = package_factory(owner_org=org["id"], user=user)
 
         activities = helpers.call_action(
             "organization_activity_list", id=org["id"]
@@ -3830,11 +3657,10 @@ class TestOrganizationActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_change_dataset(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
+    def test_change_dataset(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
         _clear_activities()
-        dataset = factories.Dataset(owner_org=org["id"], user=user)
+        dataset = package_factory(owner_org=org["id"], user=user)
         original_title = dataset["title"]
         dataset["title"] = "Dataset with changed title"
         helpers.call_action(
@@ -3856,10 +3682,9 @@ class TestOrganizationActivityList(object):
         assert activities[1]["activity_type"] == "new package"
         assert activities[1]["data"]["package"]["title"] == original_title
 
-    def test_change_dataset_add_tag(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(owner_org=org["id"], user=user)
+    def test_change_dataset_add_tag(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
+        dataset = package_factory(owner_org=org["id"], user=user)
         _clear_activities()
         dataset["tags"].append(dict(name="checked"))
         helpers.call_action(
@@ -3876,10 +3701,9 @@ class TestOrganizationActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_delete_dataset(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(owner_org=org["id"], user=user)
+    def test_delete_dataset(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
+        dataset = package_factory(owner_org=org["id"], user=user)
         _clear_activities()
         helpers.call_action(
             "package_delete", context={"user": user["name"]}, **dataset
@@ -3895,11 +3719,10 @@ class TestOrganizationActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_change_dataset_that_used_to_be_in_the_org(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
-        org2 = factories.Organization(user=user)
-        dataset = factories.Dataset(owner_org=org["id"], user=user)
+    def test_change_dataset_that_used_to_be_in_the_org(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
+        org2 = organization_factory(user=user)
+        dataset = package_factory(owner_org=org["id"], user=user)
         # remove the dataset from the org
         dataset["owner_org"] = org2["id"]
         helpers.call_action(
@@ -3918,11 +3741,10 @@ class TestOrganizationActivityList(object):
         )
         assert [activity["activity_type"] for activity in activities] == []
 
-    def test_delete_dataset_that_used_to_be_in_the_org(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
-        org2 = factories.Organization(user=user)
-        dataset = factories.Dataset(owner_org=org["id"], user=user)
+    def test_delete_dataset_that_used_to_be_in_the_org(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
+        org2 = organization_factory(user=user)
+        dataset = package_factory(owner_org=org["id"], user=user)
         # remove the dataset from the group
         dataset["owner_org"] = org2["id"]
         helpers.call_action(
@@ -3941,10 +3763,9 @@ class TestOrganizationActivityList(object):
         assert [activity["activity_type"] for activity in activities] == []
 
     def _create_bulk_org_activities(self, count):
-        org = factories.Organization()
+        org = factories.OrganizationFactory()
+        user = factories.UserFactory()
         from ckan import model
-
-        user = factories.User()
 
         objs = [
             model.Activity(
@@ -3979,32 +3800,30 @@ class TestOrganizationActivityList(object):
         )
         assert len(results) == 7  # i.e. ckan.activity_list_limit_max
 
-    def test_normal_user_doesnt_see_hidden_activities(self):
+    def test_normal_user_doesnt_see_hidden_activities(self, organization):
         # activity is 'hidden' because org is created by site_user
-        org = factories.Organization()
+
 
         activities = helpers.call_action(
-            "organization_activity_list", id=org["id"]
+            "organization_activity_list", id=organization["id"]
         )
         assert [activity["activity_type"] for activity in activities] == []
 
-    def test_sysadmin_user_doesnt_see_hidden_activities_by_default(self):
+    def test_sysadmin_user_doesnt_see_hidden_activities_by_default(self, organization):
         # activity is 'hidden' because org is created by site_user
-        org = factories.Organization()
+
 
         activities = helpers.call_action(
-            "organization_activity_list", id=org["id"]
+            "organization_activity_list", id=organization["id"]
         )
         assert [activity["activity_type"] for activity in activities] == []
 
-    def test_sysadmin_user_can_include_hidden_activities(self):
+    def test_sysadmin_user_can_include_hidden_activities(self, organization):
         # activity is 'hidden' because org is created by site_user
-        org = factories.Organization()
-
         activities = helpers.call_action(
             "organization_activity_list",
             include_hidden_activity=True,
-            id=org["id"],
+            id=organization["id"],
         )
         assert [activity["activity_type"] for activity in activities] == [
             "new organization"
@@ -4013,9 +3832,8 @@ class TestOrganizationActivityList(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestRecentlyChangedPackagesActivityList(object):
-    def test_create_dataset(self):
-        user = factories.User()
-        org = factories.Dataset(user=user)
+    def test_create_dataset(self, user, package_factory):
+        org = package_factory(user=user)
 
         activities = helpers.call_action(
             "recently_changed_packages_activity_list", id=org["id"]
@@ -4027,11 +3845,10 @@ class TestRecentlyChangedPackagesActivityList(object):
         assert activities[0]["object_id"] == org["id"]
         assert activities[0]["data"]["package"]["title"] == org["title"]
 
-    def test_change_dataset(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
+    def test_change_dataset(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
         _clear_activities()
-        dataset = factories.Dataset(owner_org=org["id"], user=user)
+        dataset = package_factory(owner_org=org["id"], user=user)
         original_title = dataset["title"]
         dataset["title"] = "Dataset with changed title"
         helpers.call_action(
@@ -4053,10 +3870,9 @@ class TestRecentlyChangedPackagesActivityList(object):
         assert activities[1]["activity_type"] == "new package"
         assert activities[1]["data"]["package"]["title"] == original_title
 
-    def test_change_dataset_add_extra(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(owner_org=org["id"], user=user)
+    def test_change_dataset_add_extra(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
+        dataset = package_factory(owner_org=org["id"], user=user)
         _clear_activities()
         dataset["extras"].append(dict(key="rating", value="great"))
         helpers.call_action(
@@ -4073,10 +3889,9 @@ class TestRecentlyChangedPackagesActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_change_dataset_add_tag(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(owner_org=org["id"], user=user)
+    def test_change_dataset_add_tag(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
+        dataset = package_factory(owner_org=org["id"], user=user)
         _clear_activities()
         dataset["tags"].append(dict(name="checked"))
         helpers.call_action(
@@ -4093,10 +3908,9 @@ class TestRecentlyChangedPackagesActivityList(object):
         assert activities[0]["object_id"] == dataset["id"]
         assert activities[0]["data"]["package"]["title"] == dataset["title"]
 
-    def test_delete_dataset(self):
-        user = factories.User()
-        org = factories.Organization(user=user)
-        dataset = factories.Dataset(owner_org=org["id"], user=user)
+    def test_delete_dataset(self, user, package_factory, organization_factory):
+        org = organization_factory(user=user)
+        dataset = package_factory(owner_org=org["id"], user=user)
         _clear_activities()
         helpers.call_action(
             "package_delete", context={"user": user["name"]}, **dataset
@@ -4114,9 +3928,7 @@ class TestRecentlyChangedPackagesActivityList(object):
 
     def _create_bulk_package_activities(self, count):
         from ckan import model
-
-        user = factories.User()
-
+        user = factories.UserFactory()
         objs = [
             model.Activity(
                 user_id=user['id'],
@@ -4156,8 +3968,7 @@ class TestRecentlyChangedPackagesActivityList(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestDashboardActivityList(object):
-    def test_create_user(self):
-        user = factories.User()
+    def test_create_user(self, user):
 
         activities = helpers.call_action(
             "dashboard_activity_list", context={"user": user["id"]}
@@ -4170,10 +3981,9 @@ class TestDashboardActivityList(object):
         # user's own activities are always marked ``'is_new': False``
         assert not activities[0]["is_new"]
 
-    def test_create_dataset(self):
-        user = factories.User()
+    def test_create_dataset(self, user, package_factory):
         _clear_activities()
-        dataset = factories.Dataset(user=user)
+        dataset = package_factory(user=user)
 
         activities = helpers.call_action(
             "dashboard_activity_list", context={"user": user["id"]}
@@ -4187,10 +3997,9 @@ class TestDashboardActivityList(object):
         # user's own activities are always marked ``'is_new': False``
         assert not activities[0]["is_new"]
 
-    def test_create_group(self):
-        user = factories.User()
+    def test_create_group(self, user, group_factory):
         _clear_activities()
-        group = factories.Group(user=user)
+        group = group_factory(user=user)
 
         activities = helpers.call_action(
             "dashboard_activity_list", context={"user": user["id"]}
@@ -4204,10 +4013,9 @@ class TestDashboardActivityList(object):
         # user's own activities are always marked ``'is_new': False``
         assert not activities[0]["is_new"]
 
-    def test_create_organization(self):
-        user = factories.User()
+    def test_create_organization(self, user, organization_factory):
         _clear_activities()
-        org = factories.Organization(user=user)
+        org = organization_factory(user=user)
 
         activities = helpers.call_action(
             "dashboard_activity_list", context={"user": user["id"]}
@@ -4222,9 +4030,8 @@ class TestDashboardActivityList(object):
         assert not activities[0]["is_new"]
 
     def _create_bulk_package_activities(self, count):
-        user = factories.User()
         from ckan import model
-
+        user = factories.UserFactory()
         objs = [
             model.Activity(
                 user_id=user["id"],
@@ -4265,10 +4072,9 @@ class TestDashboardActivityList(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestDashboardNewActivities(object):
-    def test_users_own_activities(self):
+    def test_users_own_activities(self, user, package_factory, group_factory):
         # a user's own activities are not shown as "new"
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+        dataset = package_factory(user=user)
         dataset["title"] = "Dataset with changed title"
         helpers.call_action(
             "package_update", context={"user": user["name"]}, **dataset
@@ -4276,7 +4082,7 @@ class TestDashboardNewActivities(object):
         helpers.call_action(
             "package_delete", context={"user": user["name"]}, **dataset
         )
-        group = factories.Group(user=user)
+        group = group_factory(user=user)
         group["title"] = "Group with changed title"
         helpers.call_action(
             "group_update", context={"user": user["name"]}, **group
@@ -4296,14 +4102,13 @@ class TestDashboardNewActivities(object):
         )
         assert new_activities_count == 0
 
-    def test_activities_by_a_followed_user(self):
-        user = factories.User()
-        followed_user = factories.User()
+    def test_activities_by_a_followed_user(self, user, user_factory, package_factory, group_factory):
+        followed_user = user_factory()
         helpers.call_action(
             "follow_user", context={"user": user["name"]}, **followed_user
         )
         _clear_activities()
-        dataset = factories.Dataset(user=followed_user)
+        dataset = package_factory(user=followed_user)
         dataset["title"] = "Dataset with changed title"
         helpers.call_action(
             "package_update",
@@ -4315,7 +4120,7 @@ class TestDashboardNewActivities(object):
             context={"user": followed_user["name"]},
             **dataset
         )
-        group = factories.Group(user=followed_user)
+        group = group_factory(user=followed_user)
         group["title"] = "Group with changed title"
         helpers.call_action(
             "group_update", context={"user": followed_user["name"]}, **group
@@ -4345,17 +4150,15 @@ class TestDashboardNewActivities(object):
             == 6
         )
 
-    def test_activities_on_a_followed_dataset(self):
-        user = factories.User()
-        another_user = factories.Sysadmin()
+    def test_activities_on_a_followed_dataset(self, user, package_factory, sysadmin):
         _clear_activities()
-        dataset = factories.Dataset(user=another_user)
+        dataset = package_factory(user=sysadmin)
         helpers.call_action(
             "follow_dataset", context={"user": user["name"]}, **dataset
         )
         dataset["title"] = "Dataset with changed title"
         helpers.call_action(
-            "package_update", context={"user": another_user["name"]}, **dataset
+            "package_update", context={"user": sysadmin["name"]}, **dataset
         )
 
         activities = helpers.call_action(
@@ -4378,17 +4181,15 @@ class TestDashboardNewActivities(object):
             == 2
         )
 
-    def test_activities_on_a_followed_group(self):
-        user = factories.User()
-        another_user = factories.Sysadmin()
+    def test_activities_on_a_followed_group(self, user, group_factory, sysadmin):
         _clear_activities()
-        group = factories.Group(user=user)
+        group = group_factory(user=user)
         helpers.call_action(
             "follow_group", context={"user": user["name"]}, **group
         )
         group["title"] = "Group with changed title"
         helpers.call_action(
-            "group_update", context={"user": another_user["name"]}, **group
+            "group_update", context={"user": sysadmin["name"]}, **group
         )
 
         activities = helpers.call_action(
@@ -4408,20 +4209,18 @@ class TestDashboardNewActivities(object):
             == 1
         )
 
-    def test_activities_on_a_dataset_in_a_followed_group(self):
-        user = factories.User()
-        another_user = factories.Sysadmin()
-        group = factories.Group(user=user)
+    def test_activities_on_a_dataset_in_a_followed_group(self, user, package_factory, group_factory, sysadmin):
+        group = group_factory(user=user)
         helpers.call_action(
             "follow_group", context={"user": user["name"]}, **group
         )
         _clear_activities()
-        dataset = factories.Dataset(
-            groups=[{"name": group["name"]}], user=another_user
+        dataset = package_factory(
+            groups=[{"name": group["name"]}], user=sysadmin
         )
         dataset["title"] = "Dataset with changed title"
         helpers.call_action(
-            "package_update", context={"user": another_user["name"]}, **dataset
+            "package_update", context={"user": sysadmin["name"]}, **dataset
         )
 
         activities = helpers.call_action(
@@ -4438,20 +4237,18 @@ class TestDashboardNewActivities(object):
             == 2
         )
 
-    def test_activities_on_a_dataset_in_a_followed_org(self):
-        user = factories.User()
-        another_user = factories.Sysadmin()
-        org = factories.Organization(user=user)
+    def test_activities_on_a_dataset_in_a_followed_org(self, user, package_factory, sysadmin, organization_factory):
+        org = organization_factory(user=user)
         helpers.call_action(
             "follow_group", context={"user": user["name"]}, **org
         )
         _clear_activities()
-        dataset = factories.Dataset(
-            owner_org=org['id'], user=another_user
+        dataset = package_factory(
+            owner_org=org['id'], user=sysadmin
         )
         dataset["title"] = "Dataset with changed title"
         helpers.call_action(
-            "package_update", context={"user": another_user["name"]}, **dataset
+            "package_update", context={"user": sysadmin["name"]}, **dataset
         )
 
         activities = helpers.call_action(
@@ -4468,18 +4265,16 @@ class TestDashboardNewActivities(object):
             == 2
         )
 
-    def test_activities_that_should_not_show(self):
-        user = factories.User()
+    def test_activities_that_should_not_show(self, user, package_factory, group_factory, sysadmin):
         _clear_activities()
         # another_user does some activity unconnected with user
-        another_user = factories.Sysadmin()
-        group = factories.Group(user=another_user)
-        dataset = factories.Dataset(
-            groups=[{"name": group["name"]}], user=another_user
+        group = group_factory(user=sysadmin)
+        dataset = package_factory(
+            groups=[{"name": group["name"]}], user=sysadmin
         )
         dataset["title"] = "Dataset with changed title"
         helpers.call_action(
-            "package_update", context={"user": another_user["name"]}, **dataset
+            "package_update", context={"user": sysadmin["name"]}, **dataset
         )
 
         activities = helpers.call_action(
@@ -4497,21 +4292,18 @@ class TestDashboardNewActivities(object):
         )
 
     @pytest.mark.ckan_config("ckan.activity_list_limit", "15")
-    def test_maximum_number_of_new_activities(self):
+    def test_maximum_number_of_new_activities(self, user, package, sysadmin):
         """Test that the new activities count does not go higher than 15, even
         if there are more than 15 new activities from the user's followers."""
-        user = factories.User()
-        another_user = factories.Sysadmin()
-        dataset = factories.Dataset()
         helpers.call_action(
-            "follow_dataset", context={"user": user["name"]}, **dataset
+            "follow_dataset", context={"user": user["name"]}, **package
         )
         for n in range(0, 20):
-            dataset["notes"] = "Updated {n} times".format(n=n)
+            package["notes"] = "Updated {n} times".format(n=n)
             helpers.call_action(
                 "package_update",
-                context={"user": another_user["name"]},
-                **dataset
+                context={"user": sysadmin["name"]},
+                **package
             )
         assert (
             helpers.call_action(
@@ -4525,9 +4317,8 @@ class TestDashboardNewActivities(object):
 class TestApiToken(object):
 
     @pytest.mark.parametrize(u'num_tokens', [0, 1, 2, 5])
-    def test_token_list(self, num_tokens):
+    def test_token_list(self, num_tokens, user):
         from ckan.lib.api_token import decode
-        user = factories.User()
         ids = []
         for _ in range(num_tokens):
             data = helpers.call_action(u"api_token_create", context={
@@ -4546,73 +4337,69 @@ class TestApiToken(object):
 
 @pytest.mark.usefixtures("clean_db")
 @pytest.mark.ckan_config(u"ckan.auth.allow_dataset_collaborators", False)
-def test_package_collaborator_list_when_config_disabled():
-
-    dataset = factories.Dataset()
+def test_package_collaborator_list_when_config_disabled(package):
 
     with pytest.raises(logic.ValidationError):
         helpers.call_action(
             'package_collaborator_list',
-            id=dataset['id'])
+            id=package['id'])
 
 
 @pytest.mark.usefixtures("clean_db")
 @pytest.mark.ckan_config(u"ckan.auth.allow_dataset_collaborators", True)
 class TestPackageMemberList(object):
 
-    def test_list(self):
+    def test_list(self, user_factory, package):
 
-        dataset = factories.Dataset()
-        user1 = factories.User()
+        user1 = user_factory()
         capacity1 = 'editor'
-        user2 = factories.User()
+        user2 = user_factory()
         capacity2 = 'member'
 
         helpers.call_action(
             'package_collaborator_create',
-            id=dataset['id'], user_id=user1['id'], capacity=capacity1)
+            id=package['id'], user_id=user1['id'], capacity=capacity1)
 
         helpers.call_action(
             'package_collaborator_create',
-            id=dataset['id'], user_id=user2['id'], capacity=capacity2)
+            id=package['id'], user_id=user2['id'], capacity=capacity2)
 
         members = helpers.call_action(
             'package_collaborator_list',
-            id=dataset['id'])
+            id=package['id'])
 
         assert len(members) == 2
 
-        assert members[0]['package_id'] == dataset['id']
+        assert members[0]['package_id'] == package['id']
         assert members[0]['user_id'] == user1['id']
         assert members[0]['capacity'] == capacity1
 
-        assert members[1]['package_id'] == dataset['id']
+        assert members[1]['package_id'] == package['id']
         assert members[1]['user_id'] == user2['id']
         assert members[1]['capacity'] == capacity2
 
-    def test_list_with_capacity(self):
+    def test_list_with_capacity(self, user_factory, package):
 
-        dataset = factories.Dataset()
-        user1 = factories.User()
+        user1 = user_factory()
         capacity1 = 'editor'
-        user2 = factories.User()
+        user2 = user_factory()
         capacity2 = 'member'
 
         helpers.call_action(
             'package_collaborator_create',
-            id=dataset['id'], user_id=user1['id'], capacity=capacity1)
+            id=package['id'], user_id=user1['id'], capacity=capacity1)
 
         helpers.call_action(
             'package_collaborator_create',
-            id=dataset['id'], user_id=user2['id'], capacity=capacity2)
+            id=package['id'], user_id=user2['id'], capacity=capacity2)
 
         members = helpers.call_action(
             'package_collaborator_list',
-            id=dataset['id'], capacity='member')
+            id=package['id'], capacity='member')
 
         assert len(members) == 1
 
-        assert members[0]['package_id'] == dataset['id']
+        assert members[0]['package_id'] == package['id']
         assert members[0]['user_id'] == user2['id']
         assert members[0]['capacity'] == capacity2
 
@@ -4623,21 +4410,18 @@ class TestPackageMemberList(object):
                 'package_collaborator_list',
                 id='xxx')
 
-    def test_list_wrong_capacity(self):
-        dataset = factories.Dataset()
-        user = factories.User()
+    def test_list_wrong_capacity(self, user, package):
         capacity = 'unknown'
 
         with pytest.raises(logic.ValidationError):
             helpers.call_action(
                 'package_collaborator_list',
-                id=dataset['id'], user_id=user['id'], capacity=capacity)
+                id=package['id'], user_id=user['id'], capacity=capacity)
 
-    def test_list_for_user(self):
+    def test_list_for_user(self, user, package_factory):
 
-        dataset1 = factories.Dataset()
-        dataset2 = factories.Dataset()
-        user = factories.User()
+        dataset1 = package_factory()
+        dataset2 = package_factory()
         capacity1 = 'editor'
         capacity2 = 'member'
 
@@ -4661,11 +4445,10 @@ class TestPackageMemberList(object):
         assert datasets[1]['package_id'] == dataset2['id']
         assert datasets[1]['capacity'] == capacity2
 
-    def test_list_for_user_with_capacity(self):
+    def test_list_for_user_with_capacity(self, user, package_factory):
 
-        dataset1 = factories.Dataset()
-        dataset2 = factories.Dataset()
-        user = factories.User()
+        dataset1 = package_factory()
+        dataset2 = package_factory()
         capacity1 = 'editor'
         capacity2 = 'member'
 
@@ -4693,8 +4476,7 @@ class TestPackageMemberList(object):
                 'package_collaborator_list_for_user',
                 id='xxx')
 
-    def test_list_for_user_wrong_capacity(self):
-        user = factories.User()
+    def test_list_for_user_wrong_capacity(self, user):
         capacity = 'unknown'
 
         with pytest.raises(logic.ValidationError):
@@ -4707,14 +4489,12 @@ class TestPackageMemberList(object):
 @pytest.mark.ckan_config(u"ckan.auth.allow_dataset_collaborators", True)
 class TestCollaboratorsSearch(object):
 
-    def test_search_results_editor(self):
+    def test_search_results_editor(self, user, organization, package_factory):
 
-        org = factories.Organization()
-        dataset1 = factories.Dataset(
-            name='test1', private=True, owner_org=org['id'])
-        dataset2 = factories.Dataset(name='test2')
+        dataset1 = package_factory(
+            name='test1', private=True, owner_org=organization['id'])
+        dataset2 = package_factory(name='test2')
 
-        user = factories.User()
         context = {
             'user': user['name'],
             'ignore_auth': False
@@ -4746,14 +4526,11 @@ class TestCollaboratorsSearch(object):
         assert results['results'][0]['id'] == dataset1['id']
         assert results['results'][1]['id'] == dataset2['id']
 
-    def test_search_results_member(self):
+    def test_search_results_member(self, user, organization, package_factory):
+        dataset1 = package_factory(
+            name='test1', private=True, owner_org=organization['id'])
+        dataset2 = package_factory(name='test2')
 
-        org = factories.Organization()
-        dataset1 = factories.Dataset(
-            name='test1', private=True, owner_org=org['id'])
-        dataset2 = factories.Dataset(name='test2')
-
-        user = factories.User()
         context = {
             'user': user['name'],
             'ignore_auth': False
@@ -4794,9 +4571,9 @@ class TestResourceSearch(object):
             helpers.call_action('resource_search')
         helpers.call_action('resource_search', query='name:*')
 
-    def test_base_search(self):
-        factories.Resource(name='one')
-        factories.Resource(name='two')
+    def test_base_search(self, resource_factory):
+        resource_factory(name='one')
+        resource_factory(name='two')
         result = helpers.call_action('resource_search', query="name:three")
         assert not result['count']
 
@@ -4806,14 +4583,14 @@ class TestResourceSearch(object):
         result = helpers.call_action('resource_search', query="name:")
         assert result['count'] == 2
 
-    def test_date_search(self):
-        res = factories.Resource()
+    def test_date_search(self, resource_factory):
+        res = resource_factory()
         result = helpers.call_action(
             'resource_search', query="created:" + res['created'])
         assert result['count'] == 1
 
-    def test_number_search(self):
-        factories.Resource(size=10)
+    def test_number_search(self, resource_factory):
+        resource_factory(size=10)
         result = helpers.call_action('resource_search', query="size:10")
         assert result['count'] == 1
 
@@ -4821,11 +4598,9 @@ class TestResourceSearch(object):
 @pytest.mark.usefixtures("clean_db")
 class TestUserPluginExtras(object):
 
-    def test_returned_if_sysadmin_and_include_plugin_extras_only(self):
+    def test_returned_if_sysadmin_and_include_plugin_extras_only(self, sysadmin, user_factory):
 
-        sysadmin = factories.Sysadmin()
-
-        user = factories.User(
+        user = user_factory(
             plugin_extras={
                 'plugin1': {
                     'key1': 'value1'

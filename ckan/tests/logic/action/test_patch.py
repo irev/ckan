@@ -2,14 +2,13 @@
 """Unit tests for ckan/logic/action/patch.py."""
 import pytest
 
-from ckan.tests import helpers, factories
+from ckan.tests import helpers
 
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestPatch(object):
-    def test_package_patch_updating_single_field(self):
-        user = factories.User()
-        dataset = factories.Dataset(
+    def test_package_patch_updating_single_field(self, user, package_factory):
+        dataset = package_factory(
             name="annakarenina", notes="some test now", user=user
         )
 
@@ -25,9 +24,8 @@ class TestPatch(object):
         assert dataset2["name"] == "somethingnew"
         assert dataset2["notes"] == "some test now"
 
-    def test_resource_patch_updating_single_field(self):
-        user = factories.User()
-        dataset = factories.Dataset(
+    def test_resource_patch_updating_single_field(self, user, package_factory):
+        dataset = package_factory(
             name="annakarenina",
             notes="some test now",
             user=user,
@@ -49,9 +47,8 @@ class TestPatch(object):
         assert resource2["name"] == "somethingnew"
         assert resource2["url"] == "http://example.com/resource"
 
-    def test_group_patch_updating_single_field(self):
-        user = factories.User()
-        group = factories.Group(
+    def test_group_patch_updating_single_field(self, user, group_factory):
+        group = group_factory(
             name="economy", description="some test now", user=user
         )
 
@@ -71,9 +68,8 @@ class TestPatch(object):
         assert group2["description"] == "somethingnew"
 
     @pytest.mark.ckan_config(u"ckan.auth.public_user_details", u"false")
-    def test_group_patch_updating_single_field_when_public_user_details_is_false(self):
-        user = factories.User()
-        group = factories.Group(
+    def test_group_patch_updating_single_field_when_public_user_details_is_false(self, user, group_factory):
+        group = group_factory(
             name="economy", description="some test now", user=user
         )
 
@@ -94,12 +90,11 @@ class TestPatch(object):
         assert len(group2["users"]) == 1
         assert group2["users"][0]["name"] == user["name"]
 
-    def test_group_patch_preserve_datasets(self):
-        user = factories.User()
-        group = factories.Group(
+    def test_group_patch_preserve_datasets(self, user, group_factory, package_factory):
+        group = group_factory(
             name="economy", description="some test now", user=user
         )
-        factories.Dataset(groups=[{"name": group["name"]}])
+        package_factory(groups=[{"name": group["name"]}])
 
         group2 = helpers.call_action("group_show", id=group["id"])
         assert 1 == group2["package_count"]
@@ -123,9 +118,8 @@ class TestPatch(object):
         )
         assert 0 == group4["package_count"]
 
-    def test_organization_patch_updating_single_field(self):
-        user = factories.User()
-        organization = factories.Organization(
+    def test_organization_patch_updating_single_field(self, user, organization_factory):
+        organization = organization_factory(
             name="economy", description="some test now", user=user
         )
 
@@ -147,9 +141,8 @@ class TestPatch(object):
         assert organization2["description"] == "somethingnew"
 
     @pytest.mark.ckan_config(u"ckan.auth.public_user_details", u"false")
-    def test_organization_patch_updating_single_field_when_public_user_details_is_false(self):
-        user = factories.User()
-        organization = factories.Organization(
+    def test_organization_patch_updating_single_field_when_public_user_details_is_false(self, user, organization_factory):
+        organization = organization_factory(
             name="economy", description="some test now", user=user
         )
 
@@ -172,8 +165,8 @@ class TestPatch(object):
         assert len(organization2["users"]) == 1
         assert organization2["users"][0]["name"] == user["name"]
 
-    def test_user_patch_updating_single_field(self):
-        user = factories.User(
+    def test_user_patch_updating_single_field(self, user_factory):
+        user = user_factory(
             fullname="Mr. Test User",
             about="Just another test user.",
         )

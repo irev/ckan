@@ -309,8 +309,8 @@ class TestCreateDefaultResourceViews(object):
         assert created_views[0]["view_type"] == "image_view"
         assert created_views[1]["view_type"] == "image_view"
 
-    def test_add_default_views_to_resource(self, package):
-        resource_dict = factories.Resource(
+    def test_add_default_views_to_resource(self, package, resource_factory):
+        resource_dict = resource_factory(
             package_id=package["id"],
             url="http://some.image.png",
             format="png",
@@ -331,9 +331,9 @@ class TestCreateDefaultResourceViews(object):
 
         assert created_views[0]["view_type"] == "image_view"
 
-    def test_add_default_views_to_resource_no_dataset_passed(self, package):
+    def test_add_default_views_to_resource_no_dataset_passed(self, package, resource_factory):
         # New resources have no views
-        resource_dict = factories.Resource(
+        resource_dict = resource_factory(
             package_id=package["id"],
             url="http://some.image.png",
             format="png",
@@ -596,8 +596,8 @@ class TestResourceCreate:
     @pytest.mark.ckan_config('ckan.auth.allow_dataset_collaborators', True)
     @pytest.mark.ckan_config('ckan.auth.allow_admin_collaborators', True)
     @pytest.mark.parametrize('role', ['admin', 'editor'])
-    def test_collaborators_can_create_resources(self, role, user, organization):
-        dataset = factories.Dataset(owner_org=organization['id'])
+    def test_collaborators_can_create_resources(self, role, user, organization, package_factory):
+        dataset = package_factory(owner_org=organization['id'])
 
         helpers.call_action(
             'package_collaborator_create',
@@ -737,8 +737,8 @@ class TestDatasetCreate(object):
         deleted_dataset = helpers.call_action("package_show", id=package["id"])
         assert deleted_dataset["name"] == package["name"]
 
-    def test_name_not_changed_after_restoring(self, package):
-        context = {"user": factories.Sysadmin()["name"]}
+    def test_name_not_changed_after_restoring(self, package, sysadmin):
+        context = {"user": sysadmin["name"]}
         helpers.call_action("package_delete", id=package["id"])
         deleted_dataset = helpers.call_action("package_show", id=package["id"])
         restored_dataset = helpers.call_action(
@@ -1040,9 +1040,8 @@ class TestUserCreate(object):
         user_obj = model.User.get(user["id"])
         assert user_obj.password == "pretend-this-is-a-valid-hash"
 
-    def test_user_create_password_hash_not_for_normal_users(self):
-        normal_user = factories.User()
-        context = {"user": normal_user["name"], "ignore_auth": False}
+    def test_user_create_password_hash_not_for_normal_users(self, user):
+        context = {"user": user["name"], "ignore_auth": False}
 
         user = helpers.call_action(
             "user_create",
@@ -1067,9 +1066,8 @@ def _clear_activities():
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowDataset(object):
-    def test_no_activity(self, app, user):
-
-        dataset = factories.Dataset(user=user)
+    def test_no_activity(self, app, user, package_factory):
+        dataset = package_factory(user=user)
         _clear_activities()
         helpers.call_action(
             "follow_dataset", context={"user": user["name"]}, **dataset
@@ -1083,8 +1081,8 @@ class TestFollowDataset(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowGroup(object):
-    def test_no_activity(self, app, user):
-        group = factories.Group(user=user)
+    def test_no_activity(self, app, user, group_factory):
+        group = group_factory(user=user)
         _clear_activities()
         helpers.call_action(
             "follow_group", context={"user": user["name"]}, **group
@@ -1098,8 +1096,8 @@ class TestFollowGroup(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowOrganization(object):
-    def test_no_activity(self, app, user):
-        org = factories.Organization(user=user)
+    def test_no_activity(self, app, user, organization_factory):
+        org = organization_factory(user=user)
         _clear_activities()
         helpers.call_action(
             "follow_group", context={"user": user["name"]}, **org
@@ -1147,62 +1145,55 @@ class TestApiToken(object):
 
 @pytest.mark.usefixtures("clean_db")
 @pytest.mark.ckan_config(u"ckan.auth.allow_dataset_collaborators", False)
-def test_create_package_collaborator_when_config_disabled():
-
-    dataset = factories.Dataset()
-    user = factories.User()
+def test_create_package_collaborator_when_config_disabled(package, user):
     capacity = 'editor'
 
     with pytest.raises(logic.ValidationError):
         helpers.call_action(
             'package_collaborator_create',
-            id=dataset['id'], user_id=user['id'], capacity=capacity)
+            id=package['id'], user_id=user['id'], capacity=capacity)
 
 
 @pytest.mark.usefixtures("clean_db")
 @pytest.mark.ckan_config(u"ckan.auth.allow_dataset_collaborators", True)
 class TestPackageMemberCreate(object):
 
-    def test_create(self, user):
+    def test_create(self, user, package):
 
-        dataset = factories.Dataset()
         capacity = 'editor'
 
         member = helpers.call_action(
             'package_collaborator_create',
-            id=dataset['id'], user_id=user['id'], capacity=capacity)
+            id=package['id'], user_id=user['id'], capacity=capacity)
 
-        assert member['package_id'] == dataset['id']
+        assert member['package_id'] == package['id']
         assert member['user_id'] == user['id']
         assert member['capacity'] == capacity
 
         assert model.Session.query(model.PackageMember).count() == 1
 
-    def test_update(self, user):
-
-        dataset = factories.Dataset()
+    def test_update(self, user, package):
         capacity = 'editor'
 
         helpers.call_action(
             'package_collaborator_create',
-            id=dataset['id'], user_id=user['id'], capacity=capacity)
+            id=package['id'], user_id=user['id'], capacity=capacity)
 
         helpers.call_action(
             'package_collaborator_create',
-            id=dataset['id'], user_id=user['id'], capacity='member')
+            id=package['id'], user_id=user['id'], capacity='member')
 
         assert model.Session.query(model.PackageMember).count() == 1
 
         assert model.Session.query(model.PackageMember).one().capacity == 'member'
 
-    def test_create_wrong_capacity(self, user):
-        dataset = factories.Dataset()
+    def test_create_wrong_capacity(self, user, package):
         capacity = 'unknown'
 
         with pytest.raises(logic.ValidationError):
             helpers.call_action(
                 'package_collaborator_create',
-                id=dataset['id'], user_id=user['id'], capacity=capacity)
+                id=package['id'], user_id=user['id'], capacity=capacity)
 
     def test_create_dataset_not_found(self, user):
         dataset = {'id': 'xxx'}
@@ -1213,15 +1204,14 @@ class TestPackageMemberCreate(object):
                 'package_collaborator_create',
                 id=dataset['id'], user_id=user['id'], capacity=capacity)
 
-    def test_create_user_not_found(self):
-        dataset = factories.Dataset()
+    def test_create_user_not_found(self, package):
         user = {'id': 'yyy'}
         capacity = 'editor'
 
         with pytest.raises(logic.NotFound):
             helpers.call_action(
                 'package_collaborator_create',
-                id=dataset['id'], user_id=user['id'], capacity=capacity)
+                id=package['id'], user_id=user['id'], capacity=capacity)
 
 
 @pytest.mark.usefixtures("clean_db")
@@ -1272,9 +1262,7 @@ class TestUserPluginExtras(object):
             }
         }
 
-    def test_ignored_on_create_if_non_sysadmin(self, sysadmin):
-
-        author = factories.User()
+    def test_ignored_on_create_if_non_sysadmin(self, sysadmin, user):
 
         user_dict = {
             'name': 'test-user',
@@ -1288,7 +1276,7 @@ class TestUserPluginExtras(object):
         }
 
         # helpers.call_action sets 'ignore_auth' to True by default
-        context = {'user': author['name'], 'ignore_auth': False}
+        context = {'user': user['name'], 'ignore_auth': False}
 
         created_user = helpers.call_action(
             'user_create', context=context, **user_dict)

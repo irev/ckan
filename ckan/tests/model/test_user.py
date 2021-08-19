@@ -130,34 +130,34 @@ class TestUser:
         user_obj.save()
         assert user_obj.validate_password(password)
 
-    def test_api_key_created_by_default(self, user):
-
+    def test_api_key_created_by_default(self, user_factory):
+        user = user_factory()
         assert user['apikey']
 
 
 @pytest.mark.usefixtures("clean_db")
 class TestUser:
     @pytest.mark.ckan_config('ckan.auth.create_default_api_keys', True)
-    def test_api_key_created_when_config_true(self, user):
-
+    def test_api_key_created_when_config_true(self, user_factory):
+        user = user_factory()
         assert user['apikey']
 
     @pytest.mark.ckan_config('ckan.auth.create_default_api_keys', False)
-    def test_api_key_not_created_when_config_false(self, user):
-
+    def test_api_key_not_created_when_config_false(self, user_factory):
+        user = user_factory()
         assert user['apikey'] is None
 
-    def test_basic(self):
-        data = factories.User()
-        user = model.User.get(data["id"])
+    def test_basic(self, user_factory):
+        data = user_factory()
+        user = model.User.by_name(data["name"])
         assert user.name == data["name"]
         assert len(user.apikey) == 36
         assert user.fullname == data["fullname"]
         assert user.email == data["email"]
 
-    def test_get(self):
-        factories.User(fullname="Brian", name="brian")
-        factories.User(fullname="Sandra", name="sandra")
+    def test_get(self, user_factory):
+        user_factory(fullname="Brian", name="brian")
+        user_factory(fullname="Sandra", name="sandra")
 
         out = model.User.get(u"brian")
         assert out.fullname == u"Brian"
@@ -165,38 +165,33 @@ class TestUser:
         out = model.User.get(u"sandra")
         assert out.fullname == u"Sandra"
 
-    def test_is_deleted(self):
-        data = factories.User()
-        user = model.User.get(data["id"])
+    def test_is_deleted(self, user_factory):
+        user = user_factory.model()
         assert not user.is_deleted()
         user.delete()
         assert user.is_deleted()
 
-    def test_user_is_active_by_default(self):
-        data = factories.User()
-        user = model.User.get(data["id"])
+    def test_user_is_active_by_default(self, user_factory):
+        user = user_factory.model()
         assert user.is_active()
 
-    def test_activate(self):
-        data = factories.User()
-        user = model.User.get(data["id"])
+    def test_activate(self, user_factory):
+        user = user_factory.model()
         user.state = "some-state"
         assert not user.is_active()
         user.activate()
         assert user.is_active()
 
-    def test_is_pending(self):
-        data = factories.User()
-        user = model.User.get(data["id"])
+    def test_is_pending(self, user_factory):
+        user = user_factory.model()
         user.state = "some-state"
         assert not user.is_pending()
         user.set_pending()
         assert user.is_pending()
 
-    def test_get_groups(self):
-        data = factories.User()
-        factories.Group(name="grp1", users=[{"name": data["name"], "capacity": "admin"}])
-        user = model.User.get(data["id"])
+    def test_get_groups(self, user_factory, group_factory):
+        user = user_factory.model()
+        group_factory(name="grp1", users=[{"name": user.name, "capacity": "admin"}])
         groups = user.get_groups()
 
         assert len(groups) == 1
@@ -209,13 +204,12 @@ class TestUser:
         assert len(groups) == 1
         assert groups[0].name == "grp1"
 
-    def test_number_of_administered_packages(self):
-        data = factories.User()
-        factories.Dataset(user=data)
+    def test_number_of_administered_packages(self, user_factory, package_factory):
+        data = user_factory()
+        package_factory(user=data)
         user1 = model.User.get(data["id"])
 
-        data = factories.User()
-        user2 = model.User.get(data["id"])
+        user2 = user_factory.model()
 
         user1.number_created_packages() == 1
         user2.number_created_packages() == 0

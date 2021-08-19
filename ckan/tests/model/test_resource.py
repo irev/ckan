@@ -34,25 +34,23 @@ class TestResource(object):
         resource_factory()
         assert Resource.count() == 3
 
-    def test_package_deletion_does_not_delete_resources(self):
-        parent = factories.Dataset()
-        factories.Resource(package_id=parent["id"])
-        factories.Resource(package_id=parent["id"])
+    def test_package_deletion_does_not_delete_resources(self, package, resource_factory):
+        resource_factory(package_id=package["id"])
+        resource_factory(package_id=package["id"])
 
         assert model.Resource.active().count() == 2
 
-        pkg = model.Package.get(parent["id"])
+        pkg = model.Package.get(package["id"])
         pkg.delete()
         model.repo.commit_and_remove()
 
         assert model.Resource.active().count() == 2
 
-    def test_package_purge_deletes_resources(self):
-        parent = factories.Dataset()
-        res1 = factories.Resource(package_id=parent["id"])
-        res2 = factories.Resource(package_id=parent["id"])
+    def test_package_purge_deletes_resources(self, package, resource_factory):
+        res1 = resource_factory(package_id=package["id"])
+        res2 = resource_factory(package_id=package["id"])
 
-        pkg = model.Package.get(parent["id"])
+        pkg = model.Package.get(package["id"])
         pkg.purge()
         model.repo.commit_and_remove()
 

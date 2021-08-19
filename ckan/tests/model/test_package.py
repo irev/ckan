@@ -30,8 +30,8 @@ class TestPackage(object):
         assert pkg.license_id == u"odc-by"
         assert pkg.license.title == u"Open Data Commons Attribution License"
 
-    def test_as_dict(self):
-        pkg = model.Package.by_name(factories.Dataset(license_id="cc-by")["name"])
+    def test_as_dict(self, package_factory):
+        pkg = package_factory.model(license_id="cc-by")
         out = pkg.as_dict()
         assert out["name"] == pkg.name
         assert out["license"] == pkg.license.title

@@ -83,7 +83,9 @@ class TestPatch(object):
         assert group["name"] == "economy"
         assert group["description"] == "somethingnew"
 
-        group2 = helpers.call_action("group_show", id=group["id"], include_users=True)
+        group2 = helpers.call_action(
+            "group_show", id=group["id"], include_users=True
+        )
 
         assert group2["name"] == "economy"
         assert group2["description"] == "somethingnew"

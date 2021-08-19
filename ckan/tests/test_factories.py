@@ -23,7 +23,7 @@ def test_id_uniqueness(entity):
 
 
 # START-CONFIG-OVERRIDE
-@pytest.mark.ckan_config(u"ckan.plugins", u"image_view")
+@pytest.mark.ckan_config("ckan.plugins", "image_view")
 @pytest.mark.usefixtures("clean_db", "with_plugins")
 def test_resource_view_factory(resource_view_factory):
     resource_view1 = resource_view_factory()

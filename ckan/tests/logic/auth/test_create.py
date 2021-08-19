@@ -7,22 +7,23 @@ import unittest.mock as mock
 import pytest
 from six import string_types
 
-import ckan.logic.auth.create as auth_create
-import ckan.model as core_model
+import ckan.model as model
+import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 
 logic = helpers.logic
 
 
 def test_anon_cant_create():
-    response = auth_create.package_create({"user": None}, None)
-    assert not response["success"]
+    context = {"user": None, "model": model}
+    with pytest.raises(logic.NotAuthorized):
+        helpers.call_auth("package_create", context)
 
 
 @pytest.mark.ckan_config("ckan.auth.anon_create_dataset", True)
 def test_anon_can_create():
-    response = auth_create.package_create({"user": None}, None)
-    assert response["success"]
+    context = {"user": None, "model": model}
+    assert helpers.call_auth("package_create", context)
 
 
 @pytest.mark.ckan_config("ckan.auth.anon_create_dataset", True)
@@ -30,44 +31,74 @@ def test_anon_can_create():
     "ckan.auth.create_dataset_if_not_in_organization", False
 )
 def test_cdnio_overrides_acd():
-    response = auth_create.package_create({"user": None}, None)
-    assert not response["success"]
+    context = {"user": None, "model": model}
+    with pytest.raises(logic.NotAuthorized):
+        helpers.call_auth("package_create", context)
 
 
 @pytest.mark.ckan_config("ckan.auth.anon_create_dataset", True)
 @pytest.mark.ckan_config("ckan.auth.create_unowned_dataset", False)
 def test_cud_overrides_acd():
-    response = auth_create.package_create({"user": None}, None)
-    assert not response["success"]
+    context = {"user": None, "model": model}
+    with pytest.raises(logic.NotAuthorized):
+        helpers.call_auth("package_create", context)
+
+
+@pytest.mark.usefixtures("clean_db", "with_request_context")
+class TestUserCreate:
+    def test_sysadmin_can_create_via_api(self, sysadmin):
+        context = {"user": sysadmin["name"], "model": model, "api_version": 3}
+        assert helpers.call_auth("user_create", context)
+
+    def test_annon_can_create_via_web(self):
+        context = {"user": None, "model": model}
+        assert helpers.call_auth("user_create", context)
+
+    def test_annon_cannot_create_via_api(self):
+        context = {"user": None, "model": model, "api_version": 3}
+        with pytest.raises(logic.NotAuthorized):
+            helpers.call_auth("user_create", context)
+
+    @pytest.mark.ckan_config("ckan.auth.create_user_via_web", False)
+    def test_annon_cannot_create_via_forbidden_web(self):
+        context = {"user": None, "model": model}
+        with pytest.raises(logic.NotAuthorized):
+            helpers.call_auth("user_create", context)
+
+    @pytest.mark.ckan_config("ckan.auth.create_user_via_api", True)
+    def test_annon_not_create_via_allowed_api(self):
+        context = {"user": None, "model": model, "api_version": 3}
+        assert helpers.call_auth("user_create", context)
 
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestRealUsersAuth(object):
     def test_no_org_user_can_create(self, user):
-        response = auth_create.package_create({"user": user["name"]}, None)
-        assert response["success"]
+        context = {"user": user["name"], "model": model}
+        assert helpers.call_auth("package_create", context)
 
     @pytest.mark.ckan_config("ckan.auth.anon_create_dataset", True)
     @pytest.mark.ckan_config(
         "ckan.auth.create_dataset_if_not_in_organization", False
     )
     def test_no_org_user_cant_create_if_cdnio_false(self, user):
-        response = auth_create.package_create({"user": user["name"]}, None)
-        assert not response["success"]
+        context = {"user": user["name"], "model": model}
+        with pytest.raises(logic.NotAuthorized):
+            helpers.call_auth("package_create", context)
 
     @pytest.mark.ckan_config("ckan.auth.anon_create_dataset", True)
     @pytest.mark.ckan_config("ckan.auth.create_unowned_dataset", False)
     def test_no_org_user_cant_create_if_cud_false(self, user):
-        response = auth_create.package_create({"user": user["name"]}, None)
-        assert not response["success"]
+        context = {"user": user["name"], "model": model}
+        with pytest.raises(logic.NotAuthorized):
+            helpers.call_auth("package_create", context)
 
     def test_same_org_user_can_create(self, user, organization_factory):
         org_users = [{"name": user["name"], "capacity": "editor"}]
         org = organization_factory(users=org_users)
         dataset = {"name": "same-org-user-can-create", "owner_org": org["id"]}
-        context = {"user": user["name"], "model": core_model}
-        response = auth_create.package_create(context, dataset)
-        assert response["success"]
+        context = {"user": user["name"], "model": model}
+        assert helpers.call_auth("package_create", context, **dataset)
 
     def test_different_org_user_cant_create(self, user, organization_factory):
         org_users = [{"name": user["name"], "capacity": "editor"}]
@@ -77,9 +108,9 @@ class TestRealUsersAuth(object):
             "name": "different-org-user-cant-create",
             "owner_org": org2["id"],
         }
-        context = {"user": user["name"], "model": core_model}
-        response = auth_create.package_create(context, dataset)
-        assert not response["success"]
+        context = {"user": user["name"], "model": model}
+        with pytest.raises(logic.NotAuthorized):
+            helpers.call_auth("package_create", context, **dataset)
 
     @mock.patch("ckan.logic.auth.create.group_member_create")
     def test_user_invite_delegates_correctly_to_group_member_create(self, gmc, user):
@@ -91,8 +122,7 @@ class TestRealUsersAuth(object):
             helpers.call_auth("user_invite", context=context, **data_dict)
 
         gmc.return_value = {"success": True}
-        result = helpers.call_auth("user_invite", context=context, **data_dict)
-        assert result
+        assert helpers.call_auth("user_invite", context=context, **data_dict)
 
     @pytest.mark.ckan_config("ckan.plugins", "image_view")
     @pytest.mark.usefixtures("with_plugins")
@@ -109,7 +139,7 @@ class TestRealUsersAuth(object):
             "image_url": "url",
         }
 
-        context = {"user": user["name"], "model": core_model}
+        context = {"user": user["name"], "model": model}
         response = helpers.call_auth(
             "resource_view_create", context=context, **resource_view
         )
@@ -137,7 +167,7 @@ class TestRealUsersAuth(object):
             "image_url": "url",
         }
 
-        context = {"user": user_2["name"], "model": core_model}
+        context = {"user": user_2["name"], "model": model}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth(
                 "resource_view_create", context=context, **resource_view
@@ -153,7 +183,7 @@ class TestRealUsersAuth(object):
             "image_url": "url",
         }
 
-        context = {"user": None, "model": core_model}
+        context = {"user": None, "model": model}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth(
                 "resource_view_create", context=context, **resource_view
@@ -165,7 +195,7 @@ class TestRealUsersAuth(object):
 
         resource = resource_factory(user=user, package_id=dataset["id"])
 
-        context = {"user": user["name"], "model": core_model}
+        context = {"user": user["name"], "model": model}
         response = helpers.call_auth(
             "resource_create_default_resource_views",
             context=context,
@@ -187,7 +217,7 @@ class TestRealUsersAuth(object):
 
         resource = resource_factory(package_id=dataset["id"])
 
-        context = {"user": user_2["name"], "model": core_model}
+        context = {"user": user_2["name"], "model": model}
         with pytest.raises(logic.NotAuthorized):
 
             helpers.call_auth(
@@ -200,7 +230,7 @@ class TestRealUsersAuth(object):
             self, resource_factory, package):
         resource = resource_factory(package_id=package["id"])
 
-        context = {"user": None, "model": core_model}
+        context = {"user": None, "model": model}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth(
                 "resource_create_default_resource_views",
@@ -211,7 +241,7 @@ class TestRealUsersAuth(object):
     def test_authorized_if_user_has_permissions_on_dataset_2(self, user, package_factory):
         dataset = package_factory(user=user)
 
-        context = {"user": user["name"], "model": core_model}
+        context = {"user": user["name"], "model": model}
         response = helpers.call_auth(
             "package_create_default_resource_views",
             context=context,
@@ -230,7 +260,7 @@ class TestRealUsersAuth(object):
 
         dataset = package_factory(owner_org=organization["id"])
 
-        context = {"user": user_2["name"], "model": core_model}
+        context = {"user": user_2["name"], "model": model}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth(
                 "package_create_default_resource_views",
@@ -240,7 +270,7 @@ class TestRealUsersAuth(object):
 
     def test_not_authorized_if_not_logged_in(self, package):
 
-        context = {"user": None, "model": core_model}
+        context = {"user": None, "model": model}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth(
                 "package_create_default_resource_views",
@@ -258,7 +288,7 @@ class TestRealUsersAuth(object):
             "format": "csv",
         }
 
-        context = {"user": user["name"], "model": core_model}
+        context = {"user": user["name"], "model": model}
         response = helpers.call_auth(
             "resource_create", context=context, **resource
         )
@@ -281,7 +311,7 @@ class TestRealUsersAuth(object):
             "format": "csv",
         }
 
-        context = {"user": user_2["name"], "model": core_model}
+        context = {"user": user_2["name"], "model": model}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth("resource_create", context=context, **resource)
 
@@ -289,7 +319,7 @@ class TestRealUsersAuth(object):
 
         resource = {"title": "Resource", "url": "http://test", "format": "csv"}
 
-        context = {"user": None, "model": core_model}
+        context = {"user": None, "model": model}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth("resource_create", context=context, **resource)
 
@@ -297,7 +327,7 @@ class TestRealUsersAuth(object):
 
         resource = {"title": "Resource", "url": "http://test", "format": "csv"}
 
-        context = {"user": sysadmin["name"], "model": core_model}
+        context = {"user": sysadmin["name"], "model": model}
         response = helpers.call_auth(
             "resource_create", context=context, **resource
         )
@@ -306,7 +336,7 @@ class TestRealUsersAuth(object):
     def test_raises_not_found_if_no_package_id_provided(self, user):
         resource = {"title": "Resource", "url": "http://test", "format": "csv"}
 
-        context = {"user": user["name"], "model": core_model}
+        context = {"user": user["name"], "model": model}
         with pytest.raises(logic.NotFound):
             helpers.call_auth("resource_create", context=context, **resource)
 
@@ -318,12 +348,12 @@ class TestRealUsersAuth(object):
             "format": "csv",
         }
 
-        context = {"user": user["name"], "model": core_model}
+        context = {"user": user["name"], "model": model}
         with pytest.raises(logic.NotFound):
             helpers.call_auth("resource_create", context=context, **resource)
 
     def test_normal_user_cant_use_it(self, user):
-        context = {"user": user["name"], "model": core_model}
+        context = {"user": user["name"], "model": model}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth("activity_create", context=context)
 
@@ -333,13 +363,13 @@ class TestApiToken(object):
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth(
                 u"api_token_create",
-                {u"user": None, u"model": core_model}
+                {u"user": None, u"model": model}
             )
 
     @pytest.mark.usefixtures(u"clean_db")
     def test_auth_user_is_allowed_to_create_tokens(self, user):
         helpers.call_auth(u"api_token_create", {
-            u"model": core_model,
+            u"model": model,
             u"user": user[u"name"]
         }, user=user[u"name"])
 
@@ -350,7 +380,7 @@ class TestPackageMemberCreateAuth(object):
     def _get_context(self, user):
 
         return {
-            'model': core_model,
+            'model': model,
             'user': user if isinstance(user, string_types) else user.get('name')
         }
 

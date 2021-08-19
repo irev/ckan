@@ -5,7 +5,6 @@ import unittest.mock as mock
 import pytest
 
 from ckan import authz as auth
-from ckan.tests import factories
 
 _check = auth.check_config_permission
 
@@ -60,8 +59,7 @@ def test_get_user_outside_web_request_py3(mock_RuntimeError):
 
 
 @pytest.mark.usefixtures('with_request_context', 'clean_db')
-def test_get_user_inside_web_request_returns_user_obj():
-    user = factories.User()
+def test_get_user_inside_web_request_returns_user_obj(user):
     assert auth._get_user(user['name']).name == user['name']
 
 

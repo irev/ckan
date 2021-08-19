@@ -10,7 +10,6 @@ from passlib.hash import pbkdf2_sha512
 from six import text_type
 
 import ckan.model as model
-import ckan.tests.factories as factories
 
 
 def _set_password(password):
@@ -34,8 +33,7 @@ def _set_password(password):
 
 @pytest.mark.usefixtures("clean_db", u"with_request_context")
 class TestUser:
-    def test_upgrade_from_sha(self):
-        user = factories.User()
+    def test_upgrade_from_sha(self, user):
         user_obj = model.User.by_name(user["name"])
 
         # setup our user with an old password hash
@@ -48,8 +46,7 @@ class TestUser:
         assert pbkdf2_sha512.identify(user_obj.password)
         assert pbkdf2_sha512.verify("testpass", user_obj.password)
 
-    def test_upgrade_from_sha_with_unicode_password(self):
-        user = factories.User()
+    def test_upgrade_from_sha_with_unicode_password(self, user):
         password = u"testpassword\xc2\xa0"
         user_obj = model.User.by_name(user["name"])
 
@@ -66,8 +63,7 @@ class TestUser:
         # check that we now allow unicode characters
         assert not pbkdf2_sha512.verify("testpassword", user_obj.password)
 
-    def test_upgrade_from_sha_with_wrong_password_fails_to_upgrade(self):
-        user = factories.User()
+    def test_upgrade_from_sha_with_wrong_password_fails_to_upgrade(self, user):
         password = u"testpassword"
         user_obj = model.User.by_name(user["name"])
 
@@ -79,13 +75,12 @@ class TestUser:
         assert old_hash == user_obj.password
         assert not pbkdf2_sha512.identify(user_obj.password)
 
-    def test_upgrade_from_pbkdf2_with_less_rounds(self):
+    def test_upgrade_from_pbkdf2_with_less_rounds(self, user):
         """set up a pbkdf key with less than the default rounds
 
         If the number of default_rounds is increased in a later version of
         passlib, ckan should upgrade the password hashes for people without
         involvement from users"""
-        user = factories.User()
         password = u"testpassword"
         user_obj = model.User.by_name(user["name"])
 
@@ -106,8 +101,7 @@ class TestUser:
         assert pbkdf2_sha512.default_salt_size == len(new_hash.salt)
         assert pbkdf2_sha512.verify(password, user_obj.password)
 
-    def test_upgrade_from_pbkdf2_fails_with_wrong_password(self):
-        user = factories.User()
+    def test_upgrade_from_pbkdf2_fails_with_wrong_password(self, user):
         password = u"testpassword"
         user_obj = model.User.by_name(user["name"])
 
@@ -121,8 +115,7 @@ class TestUser:
         # check that the hash has _not_ been updated
         assert old_hash == user_obj.password
 
-    def test_pbkdf2_password_auth(self):
-        user = factories.User()
+    def test_pbkdf2_password_auth(self, user):
         password = u"testpassword"
         user_obj = model.User.by_name(user["name"])
 
@@ -130,28 +123,23 @@ class TestUser:
         user_obj.save()
         assert user_obj.validate_password(password)
 
-    def test_pbkdf2_password_auth_unicode(self):
-        user = factories.User()
+    def test_pbkdf2_password_auth_unicode(self, user):
         password = u"testpassword\xc2\xa0"
         user_obj = model.User.by_name(user["name"])
         user_obj._set_password(password)
         user_obj.save()
         assert user_obj.validate_password(password)
 
-    def test_api_key_created_by_default(self):
-        user = factories.User()
+    def test_api_key_created_by_default(self, user):
 
         assert user['apikey']
 
     @pytest.mark.ckan_config('ckan.auth.create_default_api_keys', True)
-    def test_api_key_created_when_config_true(self):
-        user = factories.User()
+    def test_api_key_created_when_config_true(self, user):
 
         assert user['apikey']
 
     @pytest.mark.ckan_config('ckan.auth.create_default_api_keys', False)
-    def test_api_key_not_created_when_config_false(self):
-
-        user = factories.User()
+    def test_api_key_not_created_when_config_false(self, user):
 
         assert user['apikey'] is None

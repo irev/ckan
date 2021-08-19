@@ -3,7 +3,6 @@
 import pytest
 
 from ckan import model
-from ckan.tests import factories
 
 
 @pytest.mark.usefixtures(u"clean_db", u"with_request_context")
@@ -31,20 +30,18 @@ class TestPackage(object):
         assert pkg.license_id == u"odc-by"
         assert pkg.license.title == u"Open Data Commons Attribution License"
 
-    def test_update(self):
-        dataset = factories.Dataset()
-        pkg = model.Package.by_name(dataset[u"name"])
+    def test_update(self, package):
+        pkg = model.Package.by_name(package[u"name"])
 
         pkg.author = u"bob"
         model.Session.commit()
         model.Session.remove()
 
-        pkg = model.Package.by_name(dataset[u"name"])
+        pkg = model.Package.by_name(package[u"name"])
         assert pkg.author == u"bob"
 
-    def test_delete(self):
-        group = factories.Group()
-        dataset = factories.Dataset(
+    def test_delete(self, group, package_factory):
+        dataset = package_factory(
             groups=[{u"id": group[u"id"]}],
             tags=[{u"name": u"science"}],
             extras=[{u"key": u"subject", u"value": u"science"}],
@@ -68,10 +65,9 @@ class TestPackage(object):
         tag = model.Session.query(model.Tag).all()[0]
         assert [p.name for p in tag.packages] == [dataset[u"name"]]
 
-    def test_purge(self):
-        org = factories.Organization()
-        group = factories.Group()
-        dataset = factories.Dataset(
+    def test_purge(self, group, organization_factory, package_factory):
+        organization = organization_factory()
+        dataset = package_factory(
             resources=[
                 {
                     u"url": u"http://example.com/image.png",
@@ -82,7 +78,7 @@ class TestPackage(object):
             tags=[{u"name": u"science"}],
             extras=[{u"key": u"subject", u"value": u"science"}],
             groups=[{u"id": group[u"id"]}],
-            owner_org=org[u"id"],
+            owner_org=organization[u"id"],
         )
         pkg = model.Package.by_name(dataset[u"name"])
 
@@ -96,8 +92,8 @@ class TestPackage(object):
         assert not model.Session.query(model.PackageTag).all()
         assert not model.Session.query(model.Resource).all()
         # org remains, just not attached to the package
-        org = model.Group.get(org[u"id"])
-        assert org.packages() == []
+        organization = model.Group.get(organization[u"id"])
+        assert organization.packages() == []
         # tag object remains, just not attached to the package
         tag = model.Session.query(model.Tag).all()[0]
         assert tag.packages == []

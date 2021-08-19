@@ -9,8 +9,8 @@ import pytest
 import ckan
 import ckan.logic as logic
 import ckan.model as model
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
+import ckan.tests.factories as factories
 from ckan.common import config
 
 from six import string_types
@@ -73,8 +73,7 @@ class TestUserInvite(object):
             self._invite_user_to_group(role=None)
 
     @mock.patch("ckan.lib.mailer.send_invite")
-    def test_raises_not_found(self, _):
-        user = factories.User()
+    def test_raises_not_found(self, _, user):
 
         context = {"user": user["name"]}
         params = {
@@ -98,10 +97,7 @@ class TestUserInvite(object):
 
     @pytest.mark.ckan_config("smtp.server", "email.example.com")
     @pytest.mark.usefixtures("with_request_context")
-    def test_smtp_error_returns_error_message(self):
-
-        sysadmin = factories.Sysadmin()
-        group = factories.Group()
+    def test_smtp_error_returns_error_message(self, sysadmin, group):
 
         context = {"user": sysadmin["name"]}
         params = {
@@ -280,10 +276,10 @@ class TestResourceViewCreate(object):
 @pytest.mark.ckan_config("ckan.plugins", "image_view")
 @pytest.mark.usefixtures("clean_db", "with_plugins")
 class TestCreateDefaultResourceViews(object):
-    def test_add_default_views_to_dataset_resources(self):
+    def test_add_default_views_to_dataset_resources(self, package_factory):
 
         # New resources have no views
-        dataset_dict = factories.Dataset(
+        dataset_dict = package_factory(
             resources=[
                 {
                     "url": "http://some.image.png",
@@ -313,12 +309,9 @@ class TestCreateDefaultResourceViews(object):
         assert created_views[0]["view_type"] == "image_view"
         assert created_views[1]["view_type"] == "image_view"
 
-    def test_add_default_views_to_resource(self):
-
-        # New resources have no views
-        dataset_dict = factories.Dataset()
+    def test_add_default_views_to_resource(self, package):
         resource_dict = factories.Resource(
-            package_id=dataset_dict["id"],
+            package_id=package["id"],
             url="http://some.image.png",
             format="png",
         )
@@ -331,19 +324,17 @@ class TestCreateDefaultResourceViews(object):
             "resource_create_default_resource_views",
             context,
             resource=resource_dict,
-            package=dataset_dict,
+            package=package,
         )
 
         assert len(created_views) == 1
 
         assert created_views[0]["view_type"] == "image_view"
 
-    def test_add_default_views_to_resource_no_dataset_passed(self):
-
+    def test_add_default_views_to_resource_no_dataset_passed(self, package):
         # New resources have no views
-        dataset_dict = factories.Dataset()
         resource_dict = factories.Resource(
-            package_id=dataset_dict["id"],
+            package_id=package["id"],
             url="http://some.image.png",
             format="png",
         )
@@ -365,10 +356,10 @@ class TestCreateDefaultResourceViews(object):
 
 @pytest.mark.usefixtures("clean_db")
 class TestResourceCreate:
-    def test_resource_create(self):
+    def test_resource_create(self, package):
         context = {}
         params = {
-            "package_id": factories.Dataset()["id"],
+            "package_id": package["id"],
             "url": "http://data",
             "name": "A nice resource",
         }
@@ -389,9 +380,8 @@ class TestResourceCreate:
         with pytest.raises(logic.ValidationError):
             helpers.call_action("resource_create", **data_dict)
 
-    def test_doesnt_require_url(self):
-        dataset = factories.Dataset()
-        data_dict = {"package_id": dataset["id"]}
+    def test_doesnt_require_url(self, package):
+        data_dict = {"package_id": package["id"]}
         new_resouce = helpers.call_action("resource_create", **data_dict)
 
         data_dict = {"id": new_resouce["id"]}
@@ -399,7 +389,7 @@ class TestResourceCreate:
 
         assert not stored_resource["url"]
 
-    def test_mimetype_by_url(self, monkeypatch, tmpdir):
+    def test_mimetype_by_url(self, monkeypatch, tmpdir, package):
         """The mimetype is guessed from the url
 
         Real world usage would be externally linking the resource and
@@ -408,7 +398,7 @@ class TestResourceCreate:
         """
         context = {}
         params = {
-            "package_id": factories.Dataset()["id"],
+            "package_id": package["id"],
             "url": "http://localhost/data.csv",
             "name": "A nice resource",
         }
@@ -420,14 +410,14 @@ class TestResourceCreate:
         assert mimetype
         assert mimetype == "text/csv"
 
-    def test_mimetype_by_url_without_path(self):
+    def test_mimetype_by_url_without_path(self, package):
         """
         The mimetype should not be guessed from url if url contains only domain
 
         """
         context = {}
         params = {
-            "package_id": factories.Dataset()["id"],
+            "package_id": package["id"],
             "url": "http://example.com",
             "name": "A nice resource",
         }
@@ -436,7 +426,7 @@ class TestResourceCreate:
         mimetype = result.pop("mimetype")
         assert mimetype is None
 
-    def test_mimetype_by_user(self):
+    def test_mimetype_by_user(self, package):
         """
         The mimetype is supplied by the user
 
@@ -445,7 +435,7 @@ class TestResourceCreate:
         """
         context = {}
         params = {
-            "package_id": factories.Dataset()["id"],
+            "package_id": package["id"],
             "url": "http://localhost/data.csv",
             "name": "A nice resource",
             "mimetype": "application/csv",
@@ -455,7 +445,7 @@ class TestResourceCreate:
         mimetype = result.pop("mimetype")
         assert mimetype == "application/csv"
 
-    def test_mimetype_by_upload_by_filename(self, create_with_upload):
+    def test_mimetype_by_upload_by_filename(self, create_with_upload, package):
         """The mimetype is guessed from an uploaded file with a filename
 
         Real world usage would be using the FileStore API or web UI
@@ -484,7 +474,7 @@ class TestResourceCreate:
 
         result = create_with_upload(
             content, 'test.json', url="http://data",
-            package_id=factories.Dataset()[u"id"]
+            package_id=package[u"id"]
         )
         mimetype = result.pop("mimetype")
 
@@ -492,7 +482,7 @@ class TestResourceCreate:
         assert mimetype == "application/json"
 
     @pytest.mark.ckan_config("ckan.mimetype_guess", "file_contents")
-    def test_mimetype_by_upload_by_file(self, create_with_upload):
+    def test_mimetype_by_upload_by_file(self, create_with_upload, package):
         """The mimetype is guessed from an uploaded file by the contents inside
 
         Real world usage would be using the FileStore API or web UI
@@ -512,7 +502,7 @@ class TestResourceCreate:
         """
         result = create_with_upload(
             content, 'test.csv', url="http://data",
-            package_id=factories.Dataset()[u"id"]
+            package_id=package[u"id"]
         )
 
         mimetype = result.pop("mimetype")
@@ -520,7 +510,7 @@ class TestResourceCreate:
         assert mimetype
         assert mimetype == "text/plain"
 
-    def test_size_of_resource_by_upload(self, create_with_upload):
+    def test_size_of_resource_by_upload(self, create_with_upload, package):
         """
         The size of the resource determined by the uploaded file
         """
@@ -535,7 +525,7 @@ class TestResourceCreate:
         """
         result = create_with_upload(
             content, 'test.csv', url="http://data",
-            package_id=factories.Dataset()[u"id"]
+            package_id=package[u"id"]
         )
 
         size = result.pop("size")
@@ -543,7 +533,7 @@ class TestResourceCreate:
         assert size
         assert size > 0
 
-    def test_size_of_resource_by_user(self):
+    def test_size_of_resource_by_user(self, package):
         """
         The size of the resource is provided by the users
 
@@ -551,7 +541,7 @@ class TestResourceCreate:
         """
         context = {}
         params = {
-            "package_id": factories.Dataset()["id"],
+            "package_id": package["id"],
             "url": "http://data",
             "name": "A nice resource",
             "size": 500,
@@ -562,9 +552,8 @@ class TestResourceCreate:
         assert size == 500
 
     @pytest.mark.usefixtures("with_request_context")
-    def test_extras(self):
-        user = factories.User()
-        dataset = factories.Dataset(user=user)
+    def test_extras(self, user, package_factory):
+        dataset = package_factory(user=user)
 
         resource = helpers.call_action(
             "resource_create",
@@ -592,10 +581,10 @@ class TestResourceCreate:
         assert resource["sublist"] == [1, 2, 3]
 
     @freeze_time('2020-02-25 12:00:00')
-    def test_metadata_modified_is_set_to_utcnow_when_created(self):
+    def test_metadata_modified_is_set_to_utcnow_when_created(self, package):
         context = {}
         params = {
-            "package_id": factories.Dataset()["id"],
+            "package_id": package["id"],
             "url": "http://data",
             "name": "A nice resource",
         }
@@ -607,12 +596,8 @@ class TestResourceCreate:
     @pytest.mark.ckan_config('ckan.auth.allow_dataset_collaborators', True)
     @pytest.mark.ckan_config('ckan.auth.allow_admin_collaborators', True)
     @pytest.mark.parametrize('role', ['admin', 'editor'])
-    def test_collaborators_can_create_resources(self, role):
-
-        org1 = factories.Organization()
-        dataset = factories.Dataset(owner_org=org1['id'])
-
-        user = factories.User()
+    def test_collaborators_can_create_resources(self, role, user, organization):
+        dataset = factories.Dataset(owner_org=organization['id'])
 
         helpers.call_action(
             'package_collaborator_create',
@@ -636,9 +621,7 @@ class TestResourceCreate:
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestMemberCreate(object):
-    def test_group_member_creation(self):
-        user = factories.User()
-        group = factories.Group()
+    def test_group_member_creation(self, user, group):
 
         new_membership = helpers.call_action(
             "group_member_create",
@@ -652,10 +635,7 @@ class TestMemberCreate(object):
         assert new_membership["table_id"] == user["id"]
         assert new_membership["capacity"] == "member"
 
-    def test_organization_member_creation(self):
-        user = factories.User()
-        organization = factories.Organization()
-
+    def test_organization_member_creation(self, user, organization):
         new_membership = helpers.call_action(
             "organization_member_create",
             id=organization["id"],
@@ -721,8 +701,7 @@ class TestMemberCreate(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestDatasetCreate(object):
-    def test_normal_user_cant_set_id(self):
-        user = factories.User()
+    def test_normal_user_cant_set_id(self, user):
         context = {"user": user["name"], "ignore_auth": False}
         with pytest.raises(logic.ValidationError):
             helpers.call_action(
@@ -732,55 +711,48 @@ class TestDatasetCreate(object):
                 name="test-dataset",
             )
 
-    def test_sysadmin_can_set_id(self):
-        user = factories.Sysadmin()
-        context = {"user": user["name"], "ignore_auth": False}
+    def test_sysadmin_can_set_id(self, sysadmin):
+        context = {"user": sysadmin["name"], "ignore_auth": False}
         dataset = helpers.call_action(
             "package_create", context=context, id="1234", name="test-dataset"
         )
         assert dataset["id"] == "1234"
 
-    def test_context_is_not_polluted(self):
-        user = factories.Sysadmin()
-        context = {"user": user["name"], "ignore_auth": False}
+    def test_context_is_not_polluted(self, sysadmin):
+        context = {"user": sysadmin["name"], "ignore_auth": False}
         helpers.call_action(
             "package_create", context=context, id="1234", name="test-dataset"
         )
         assert "id" not in context
         assert "package" not in context
 
-    def test_id_cant_already_exist(self):
-        dataset = factories.Dataset()
-        user = factories.Sysadmin()
+    def test_id_cant_already_exist(self, sysadmin, package):
         with pytest.raises(logic.ValidationError):
             helpers.call_action(
-                "package_create", id=dataset["id"], name="test-dataset"
+                "package_create", id=package["id"], name="test-dataset"
             )
 
-    def test_name_not_changed_during_deletion(self):
-        dataset = factories.Dataset()
-        helpers.call_action("package_delete", id=dataset["id"])
-        deleted_dataset = helpers.call_action("package_show", id=dataset["id"])
-        assert deleted_dataset["name"] == dataset["name"]
+    def test_name_not_changed_during_deletion(self, package):
+        helpers.call_action("package_delete", id=package["id"])
+        deleted_dataset = helpers.call_action("package_show", id=package["id"])
+        assert deleted_dataset["name"] == package["name"]
 
-    def test_name_not_changed_after_restoring(self):
-        dataset = factories.Dataset()
+    def test_name_not_changed_after_restoring(self, package):
         context = {"user": factories.Sysadmin()["name"]}
-        helpers.call_action("package_delete", id=dataset["id"])
-        deleted_dataset = helpers.call_action("package_show", id=dataset["id"])
+        helpers.call_action("package_delete", id=package["id"])
+        deleted_dataset = helpers.call_action("package_show", id=package["id"])
         restored_dataset = helpers.call_action(
-            "package_patch", context=context, id=dataset["id"], state="active"
+            "package_patch", context=context, id=package["id"], state="active"
         )
         assert deleted_dataset["name"] == restored_dataset["name"]
         assert deleted_dataset["id"] == restored_dataset["id"]
 
-    def test_creation_of_dataset_with_name_same_as_of_previously_removed(self):
-        dataset = factories.Dataset()
-        initial_name = dataset["name"]
-        helpers.call_action("package_delete", id=dataset["id"])
+    def test_creation_of_dataset_with_name_same_as_of_previously_removed(self, package):
+        initial_name = package["name"]
+        helpers.call_action("package_delete", id=package["id"])
         new_dataset = helpers.call_action("package_create", name=initial_name)
         assert new_dataset["name"] == initial_name
-        deleted_dataset = helpers.call_action("package_show", id=dataset["id"])
+        deleted_dataset = helpers.call_action("package_show", id=package["id"])
 
         assert new_dataset["id"] != deleted_dataset["id"]
         assert deleted_dataset["name"] == deleted_dataset["id"]
@@ -927,8 +899,7 @@ class TestDatasetCreate(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestGroupCreate(object):
-    def test_create_group(self):
-        user = factories.User()
+    def test_create_group(self, user):
         context = {"user": user["name"], "ignore_auth": True}
 
         group = helpers.call_action(
@@ -941,8 +912,7 @@ class TestGroupCreate(object):
         assert not group["is_organization"]
         assert group["type"] == "group"
 
-    def test_create_group_validation_fail(self):
-        user = factories.User()
+    def test_create_group_validation_fail(self, user):
         context = {"user": user["name"], "ignore_auth": True}
 
         with pytest.raises(logic.ValidationError):
@@ -950,10 +920,9 @@ class TestGroupCreate(object):
                 "group_create", context=context, name=""
             )
 
-    def test_create_group_return_id(self):
+    def test_create_group_return_id(self, user):
         import re
 
-        user = factories.User()
         context = {
             "user": user["name"],
             "ignore_auth": True,
@@ -967,8 +936,7 @@ class TestGroupCreate(object):
         assert isinstance(group, str)
         assert re.match(r"([a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}?)", group)
 
-    def test_create_matches_show(self):
-        user = factories.User()
+    def test_create_matches_show(self, user):
         context = {"user": user["name"], "ignore_auth": True}
 
         created = helpers.call_action(
@@ -986,8 +954,7 @@ class TestGroupCreate(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestOrganizationCreate(object):
-    def test_create_organization(self):
-        user = factories.User()
+    def test_create_organization(self, user):
         context = {"user": user["name"], "ignore_auth": True}
 
         org = helpers.call_action(
@@ -1000,8 +967,7 @@ class TestOrganizationCreate(object):
         assert org["is_organization"]
         assert org["type"] == "organization"
 
-    def test_create_organization_validation_fail(self):
-        user = factories.User()
+    def test_create_organization_validation_fail(self, user):
         context = {"user": user["name"], "ignore_auth": True}
 
         with pytest.raises(logic.ValidationError):
@@ -1009,10 +975,9 @@ class TestOrganizationCreate(object):
                 "organization_create", context=context, name=""
             )
 
-    def test_create_organization_return_id(self):
+    def test_create_organization_return_id(self, user):
         import re
 
-        user = factories.User()
         context = {
             "user": user["name"],
             "ignore_auth": True,
@@ -1026,8 +991,7 @@ class TestOrganizationCreate(object):
         assert isinstance(org, str)
         assert re.match(r"([a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}?)", org)
 
-    def test_create_matches_show(self):
-        user = factories.User()
+    def test_create_matches_show(self, user):
         context = {"user": user["name"], "ignore_auth": True}
 
         created = helpers.call_action(
@@ -1042,9 +1006,8 @@ class TestOrganizationCreate(object):
         for k in created.keys():
             assert created[k] == shown[k], k
 
-    def test_create_organization_custom_type(self):
+    def test_create_organization_custom_type(self, user):
         custom_org_type = "some-custom-type"
-        user = factories.User()
         context = {"user": user["name"], "ignore_auth": True}
 
         org = helpers.call_action(
@@ -1063,8 +1026,7 @@ class TestOrganizationCreate(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestUserCreate(object):
-    def test_user_create_with_password_hash(self):
-        sysadmin = factories.Sysadmin()
+    def test_user_create_with_password_hash(self, sysadmin):
         context = {"user": sysadmin["name"]}
 
         user = helpers.call_action(
@@ -1105,9 +1067,8 @@ def _clear_activities():
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowDataset(object):
-    def test_no_activity(self, app):
+    def test_no_activity(self, app, user):
 
-        user = factories.User()
         dataset = factories.Dataset(user=user)
         _clear_activities()
         helpers.call_action(
@@ -1122,8 +1083,7 @@ class TestFollowDataset(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowGroup(object):
-    def test_no_activity(self, app):
-        user = factories.User()
+    def test_no_activity(self, app, user):
         group = factories.Group(user=user)
         _clear_activities()
         helpers.call_action(
@@ -1138,8 +1098,7 @@ class TestFollowGroup(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowOrganization(object):
-    def test_no_activity(self, app):
-        user = factories.User()
+    def test_no_activity(self, app, user):
         org = factories.Organization(user=user)
         _clear_activities()
         helpers.call_action(
@@ -1154,10 +1113,10 @@ class TestFollowOrganization(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowUser(object):
-    def test_no_activity(self, app):
+    def test_no_activity(self, app, user_factory):
 
-        user = factories.User()
-        user2 = factories.User()
+        user = user_factory()
+        user2 = user_factory()
         _clear_activities()
         helpers.call_action(
             "follow_user", context={"user": user["name"]}, **user2
@@ -1172,9 +1131,8 @@ class TestFollowUser(object):
 @pytest.mark.usefixtures(u"clean_db")
 class TestApiToken(object):
 
-    def test_token_created(self):
+    def test_token_created(self, user):
         from ckan.lib.api_token import decode
-        user = factories.User()
         data = helpers.call_action(u"api_token_create", context={
             u"model": model,
             u"user": user[u"name"]
@@ -1205,10 +1163,9 @@ def test_create_package_collaborator_when_config_disabled():
 @pytest.mark.ckan_config(u"ckan.auth.allow_dataset_collaborators", True)
 class TestPackageMemberCreate(object):
 
-    def test_create(self):
+    def test_create(self, user):
 
         dataset = factories.Dataset()
-        user = factories.User()
         capacity = 'editor'
 
         member = helpers.call_action(
@@ -1221,10 +1178,9 @@ class TestPackageMemberCreate(object):
 
         assert model.Session.query(model.PackageMember).count() == 1
 
-    def test_update(self):
+    def test_update(self, user):
 
         dataset = factories.Dataset()
-        user = factories.User()
         capacity = 'editor'
 
         helpers.call_action(
@@ -1239,9 +1195,8 @@ class TestPackageMemberCreate(object):
 
         assert model.Session.query(model.PackageMember).one().capacity == 'member'
 
-    def test_create_wrong_capacity(self):
+    def test_create_wrong_capacity(self, user):
         dataset = factories.Dataset()
-        user = factories.User()
         capacity = 'unknown'
 
         with pytest.raises(logic.ValidationError):
@@ -1249,9 +1204,8 @@ class TestPackageMemberCreate(object):
                 'package_collaborator_create',
                 id=dataset['id'], user_id=user['id'], capacity=capacity)
 
-    def test_create_dataset_not_found(self):
+    def test_create_dataset_not_found(self, user):
         dataset = {'id': 'xxx'}
-        user = factories.User()
         capacity = 'editor'
 
         with pytest.raises(logic.NotFound):
@@ -1273,9 +1227,7 @@ class TestPackageMemberCreate(object):
 @pytest.mark.usefixtures("clean_db")
 class TestUserPluginExtras(object):
 
-    def test_stored_on_create_if_sysadmin(self):
-
-        sysadmin = factories.Sysadmin()
+    def test_stored_on_create_if_sysadmin(self, sysadmin):
 
         user_dict = {
             'name': 'test-user',
@@ -1320,10 +1272,9 @@ class TestUserPluginExtras(object):
             }
         }
 
-    def test_ignored_on_create_if_non_sysadmin(self):
+    def test_ignored_on_create_if_non_sysadmin(self, sysadmin):
 
         author = factories.User()
-        sysadmin = factories.Sysadmin()
 
         user_dict = {
             'name': 'test-user',

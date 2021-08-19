@@ -3,7 +3,6 @@
 import pytest
 
 from ckan import model
-from ckan.tests import factories
 
 
 @pytest.mark.usefixtures(u"clean_db")
@@ -33,8 +32,8 @@ class TestTags(object):
             [u"science", u"geology", u"energy"]
         )
 
-    def test_delete_tag(self):
-        dataset = factories.Dataset(
+    def test_delete_tag(self, package_factory):
+        dataset = package_factory(
             tags=[
                 {u"name": u"science"},
                 {u"name": u"geology"},

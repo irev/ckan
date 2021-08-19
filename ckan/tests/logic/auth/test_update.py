@@ -8,16 +8,15 @@ from six import string_types
 
 import ckan.logic as logic
 import ckan.model as model
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 
 
 @pytest.mark.usefixtures("with_request_context")
-def test_user_update_visitor_cannot_update_user():
+def test_user_update_visitor_cannot_update_user(mock_user_factory):
     """Visitors should not be able to update users' accounts."""
 
     # Make a mock ckan.model.User object, Fred.
-    fred = factories.MockUser(name="fred")
+    fred = mock_user_factory(name="fred")
 
     # Make a mock ckan.model object.
     mock_model = mock.MagicMock()
@@ -42,13 +41,13 @@ def test_user_update_visitor_cannot_update_user():
 
 
 @pytest.mark.usefixtures("with_request_context")
-def test_user_update_user_cannot_update_another_user():
+def test_user_update_user_cannot_update_another_user(mock_user_factory):
     """Users should not be able to update other users' accounts."""
 
     # 1. Setup.
 
     # Make a mock ckan.model.User object, Fred.
-    fred = factories.MockUser(name="fred")
+    fred = mock_user_factory(name="fred")
 
     # Make a mock ckan.model object.
     mock_model = mock.MagicMock()
@@ -79,11 +78,11 @@ def test_user_update_user_cannot_update_another_user():
 
 
 @pytest.mark.usefixtures("with_request_context")
-def test_user_update_user_can_update_her():
+def test_user_update_user_can_update_her(mock_user_factory):
     """Users should be authorized to update their own accounts."""
 
     # Make a mock ckan.model.User object, Fred.
-    fred = factories.MockUser(name="fred")
+    fred = mock_user_factory(name="fred")
 
     # Make a mock ckan.model object.
     mock_model = mock.MagicMock()
@@ -106,10 +105,10 @@ def test_user_update_user_can_update_her():
     assert result is True
 
 
-def test_user_update_with_no_user_in_context():
+def test_user_update_with_no_user_in_context(mock_user_factory):
 
     # Make a mock ckan.model.User object.
-    mock_user = factories.MockUser(name="fred")
+    mock_user = mock_user_factory(name="fred")
 
     # Make a mock ckan.model object.
     mock_model = mock.MagicMock()
@@ -130,8 +129,8 @@ def test_user_update_with_no_user_in_context():
 
 
 @pytest.mark.usefixtures("with_request_context")
-def test_user_generate_own_apikey():
-    fred = factories.MockUser(name="fred")
+def test_user_generate_own_apikey(mock_user_factory):
+    fred = mock_user_factory(name="fred")
     mock_model = mock.MagicMock()
     mock_model.User.get.return_value = fred
     # auth_user_obj shows user as logged in for non-anonymous auth
@@ -147,8 +146,8 @@ def test_user_generate_own_apikey():
 
 
 @pytest.mark.usefixtures("with_request_context")
-def test_user_generate_apikey_without_logged_in_user():
-    fred = factories.MockUser(name="fred")
+def test_user_generate_apikey_without_logged_in_user(mock_user_factory):
+    fred = mock_user_factory(name="fred")
     mock_model = mock.MagicMock()
     mock_model.User.get.return_value = fred
     context = {"model": mock_model}
@@ -160,9 +159,9 @@ def test_user_generate_apikey_without_logged_in_user():
 
 
 @pytest.mark.usefixtures("with_request_context")
-def test_user_generate_apikey_for_another_user():
-    fred = factories.MockUser(name="fred")
-    bob = factories.MockUser(name="bob")
+def test_user_generate_apikey_for_another_user(mock_user_factory):
+    fred = mock_user_factory(name="fred")
+    bob = mock_user_factory(name="bob")
     mock_model = mock.MagicMock()
     mock_model.User.get.return_value = fred
     # auth_user_obj shows user as logged in for non-anonymous auth
@@ -178,10 +177,7 @@ def test_user_generate_apikey_for_another_user():
 @pytest.mark.ckan_config("ckan.plugins", "image_view")
 @pytest.mark.usefixtures("clean_db", "with_plugins", "with_request_context")
 class TestUpdateWithView(object):
-    def test_anon_can_not_update(self):
-
-        resource_view = factories.ResourceView()
-
+    def test_anon_can_not_update(self, resource_view):
         params = {
             "id": resource_view["id"],
             "title": "Resource View Updated",
@@ -195,15 +191,13 @@ class TestUpdateWithView(object):
                 "resource_view_update", context=context, **params
             )
 
-    def test_authorized_if_user_has_permissions_on_dataset(self):
+    def test_authorized_if_user_has_permissions_on_dataset(self, user, package_factory, resource_factory, resource_view_factory):
 
-        user = factories.User()
+        dataset = package_factory(user=user)
 
-        dataset = factories.Dataset(user=user)
+        resource = resource_factory(user=user, package_id=dataset["id"])
 
-        resource = factories.Resource(user=user, package_id=dataset["id"])
-
-        resource_view = factories.ResourceView(resource_id=resource["id"])
+        resource_view = resource_view_factory(resource_id=resource["id"])
 
         params = {
             "id": resource_view["id"],
@@ -220,22 +214,19 @@ class TestUpdateWithView(object):
 
         assert response
 
-    def test_not_authorized_if_user_has_no_permissions_on_dataset(self):
+    def test_not_authorized_if_user_has_no_permissions_on_dataset(self, organization, user_factory, package_factory, resource_factory, resource_view_factory):
+        user = user_factory()
 
-        org = factories.Organization()
-
-        user = factories.User()
-
-        member = {"username": user["name"], "role": "admin", "id": org["id"]}
+        member = {"username": user["name"], "role": "admin", "id": organization["id"]}
         helpers.call_action("organization_member_create", **member)
 
-        user_2 = factories.User()
+        user_2 = user_factory()
 
-        dataset = factories.Dataset(owner_org=org["id"])
+        dataset = package_factory(owner_org=organization["id"])
 
-        resource = factories.Resource(package_id=dataset["id"])
+        resource = resource_factory(package_id=dataset["id"])
 
-        resource_view = factories.ResourceView(resource_id=resource["id"])
+        resource_view = resource_view_factory(resource_id=resource["id"])
 
         params = {
             "id": resource_view["id"],
@@ -261,18 +252,16 @@ class TestUpdate(object):
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth("config_option_update", context=context)
 
-    def test_config_option_update_normal_user(self):
+    def test_config_option_update_normal_user(self, user):
         """A normal logged in user is not authorized to use config_option_update
         action."""
-        factories.User(name="fred")
-        context = {"user": "fred", "model": None}
+        context = {"user": user["name"], "model": None}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth("config_option_update", context=context)
 
-    def test_config_option_update_sysadmin(self):
+    def test_config_option_update_sysadmin(self, sysadmin):
         """A sysadmin is authorized to use config_option_update action."""
-        factories.Sysadmin(name="fred")
-        context = {"user": "fred", "model": None}
+        context = {"user": sysadmin["name"], "model": None}
         assert helpers.call_auth("config_option_update", context=context)
 
 
@@ -299,12 +288,8 @@ class TestUpdateAuthWithCollaborators(object):
         ('admin', 'package_delete', True),
         ('editor', 'package_delete', True),
     ])
-    def test_dataset_manage_admin_and_editors(self, role, action, private):
-
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org['id'], private=private)
-        user = factories.User()
-
+    def test_dataset_manage_admin_and_editors(self, role, action, private, organization, user, package_factory):
+        dataset = package_factory(owner_org=organization['id'], private=private)
         context = self._get_context(user)
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth(
@@ -329,11 +314,8 @@ class TestUpdateAuthWithCollaborators(object):
         ('package_delete', True),
         ('package_delete', True),
     ])
-    def test_dataset_manage_member(self, action, private):
-
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org['id'], private=private)
-        user = factories.User()
+    def test_dataset_manage_member(self, action, private, organization, user, package_factory):
+        dataset = package_factory(owner_org=organization['id'], private=private)
 
         context = self._get_context(user)
         with pytest.raises(logic.NotAuthorized):
@@ -352,11 +334,8 @@ class TestUpdateAuthWithCollaborators(object):
                 context=context, id=dataset['id'])
 
     @pytest.mark.parametrize('role', ['admin', 'editor'])
-    def test_resource_create_public_admin_and_editor(self, role):
-
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org['id'])
-        user = factories.User()
+    def test_resource_create_public_admin_and_editor(self, role, organization, user, package_factory):
+        dataset = package_factory(owner_org=organization['id'])
 
         context = self._get_context(user)
         with pytest.raises(logic.NotAuthorized):
@@ -372,11 +351,9 @@ class TestUpdateAuthWithCollaborators(object):
             'resource_create',
             context=context, package_id=dataset['id'])
 
-    def test_resource_create_public_member(self):
+    def test_resource_create_public_member(self, organization, user, package_factory):
 
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org['id'])
-        user = factories.User()
+        dataset = package_factory(owner_org=organization['id'])
 
         context = self._get_context(user)
         with pytest.raises(logic.NotAuthorized):
@@ -399,12 +376,10 @@ class TestUpdateAuthWithCollaborators(object):
         ('admin', 'resource_delete'),
         ('editor', 'resource_delete'),
     ])
-    def test_resource_manage_public_admin_and_editor(self, role, action):
+    def test_resource_manage_public_admin_and_editor(self, role, action, organization, user, package_factory, resource_factory):
 
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org['id'])
-        resource = factories.Resource(package_id=dataset['id'])
-        user = factories.User()
+        dataset = package_factory(owner_org=organization['id'])
+        resource = resource_factory(package_id=dataset['id'])
 
         context = self._get_context(user)
         with pytest.raises(logic.NotAuthorized):
@@ -420,12 +395,10 @@ class TestUpdateAuthWithCollaborators(object):
             action,
             context=context, id=resource['id'])
 
-    def test_resource_update_public_member(self):
+    def test_resource_update_public_member(self, organization, user, package_factory, resource_factory):
 
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org['id'])
-        resource = factories.Resource(package_id=dataset['id'])
-        user = factories.User()
+        dataset = package_factory(owner_org=organization['id'])
+        resource = resource_factory(package_id=dataset['id'])
 
         context = self._get_context(user)
         with pytest.raises(logic.NotAuthorized):
@@ -442,12 +415,9 @@ class TestUpdateAuthWithCollaborators(object):
                 'resource_update',
                 context=context, id=resource['id'])
 
-    def test_resource_delete_public_member(self):
-
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org['id'])
-        resource = factories.Resource(package_id=dataset['id'])
-        user = factories.User()
+    def test_resource_delete_public_member(self, organization, user, package_factory, resource_factory):
+        dataset = package_factory(owner_org=organization['id'])
+        resource = resource_factory(package_id=dataset['id'])
 
         context = self._get_context(user)
         with pytest.raises(logic.NotAuthorized):
@@ -465,12 +435,10 @@ class TestUpdateAuthWithCollaborators(object):
                 context=context, id=resource['id'])
 
     @pytest.mark.parametrize('role', ['admin', 'editor'])
-    def test_resource_view_create_public_editor(self, role):
+    def test_resource_view_create_public_editor(self, role, organization, user, package_factory, resource_factory):
 
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org['id'])
-        resource = factories.Resource(package_id=dataset['id'])
-        user = factories.User()
+        dataset = package_factory(owner_org=organization['id'])
+        resource = resource_factory(package_id=dataset['id'])
 
         context = self._get_context(user)
         with pytest.raises(logic.NotAuthorized):
@@ -486,12 +454,10 @@ class TestUpdateAuthWithCollaborators(object):
             'resource_view_create',
             context=context, resource_id=resource['id'])
 
-    def test_resource_view_create_public_member(self):
+    def test_resource_view_create_public_member(self, organization, user, package_factory, resource_factory):
 
-        org = factories.Organization()
-        dataset = factories.Dataset(owner_org=org['id'])
-        resource = factories.Resource(package_id=dataset['id'])
-        user = factories.User()
+        dataset = package_factory(owner_org=organization['id'])
+        resource = resource_factory(package_id=dataset['id'])
 
         context = self._get_context(user)
         with pytest.raises(logic.NotAuthorized):

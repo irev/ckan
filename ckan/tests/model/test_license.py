@@ -7,7 +7,6 @@ import pytest
 import ckan.model as model
 from ckan.common import config
 from ckan.model.license import LicenseRegister
-from ckan.tests import factories
 
 this_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -61,8 +60,7 @@ def test_import_v2_style_register():
     "licenses_group_url", "file:///%s/licenses.v1" % this_dir
 )
 @pytest.mark.ckan_config("ckan.locale_default", "ca")
-def test_import_v1_style_register_i18n(app):
-    sysadmin = factories.Sysadmin()
+def test_import_v1_style_register_i18n(app, sysadmin):
     resp = app.get(
         "/dataset/new", extra_environ={"REMOTE_USER": str(sysadmin["name"])}
     )
@@ -74,8 +72,7 @@ def test_import_v1_style_register_i18n(app):
     "licenses_group_url", "file:///%s/licenses.v2" % this_dir
 )
 @pytest.mark.ckan_config("ckan.locale_default", "ca")
-def test_import_v2_style_register_i18n(app):
-    sysadmin = factories.Sysadmin()
+def test_import_v2_style_register_i18n(app, sysadmin):
     resp = app.get(
         "/dataset/new", extra_environ={"REMOTE_USER": str(sysadmin["name"])}
     )

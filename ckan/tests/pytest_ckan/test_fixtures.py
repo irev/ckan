@@ -8,7 +8,6 @@ from six.moves.urllib.parse import urlparse
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as tk
 from ckan.common import config
-from ckan.tests import factories
 
 
 def test_ckan_config_fixture(ckan_config):
@@ -69,8 +68,7 @@ class TestClassLevelConfig(object):
 
 class TestCreateWithUpload(object):
 
-    def test_create_organization(self, create_with_upload, ckan_config):
-        user = factories.User()
+    def test_create_organization(self, create_with_upload, ckan_config, user):
         context = {
             u"user": user["name"]
         }
@@ -92,11 +90,10 @@ class TestCreateWithUpload(object):
             content = image.read()
             assert content == b"\0\0\0"
 
-    def test_create_resource(self, create_with_upload):
-        dataset = factories.Dataset()
+    def test_create_resource(self, create_with_upload, package):
         resource = create_with_upload(
             u"hello world", u"file.txt",
-            package_id=dataset[u'id']
+            package_id=package[u'id']
         )
         assert resource[u"url_type"] == u"upload"
         assert resource[u"format"] == u"TXT"

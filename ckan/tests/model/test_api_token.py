@@ -4,12 +4,9 @@ import pytest
 from datetime import datetime
 
 from ckan.model import Session, ApiToken, User
-import ckan.tests.factories as factories
-
 
 @pytest.fixture
-def token():
-    user = factories.User()
+def token(user):
     token = ApiToken(user[u"id"])
     Session.add(token)
     Session.commit()
@@ -28,11 +25,11 @@ class TestApiToken(object):
 
         assert before < token.last_access < after
 
-    def test_tokens_related_to_user(self):
-        user_1 = factories.User()
+    def test_tokens_related_to_user(self, user_factory):
+        user_1 = user_factory()
         num_tokens_1 = 5
 
-        user_2 = factories.User()
+        user_2 = user_factory()
         num_tokens_2 = 3
 
         for i in range(num_tokens_1):

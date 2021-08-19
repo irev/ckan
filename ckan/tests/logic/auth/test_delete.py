@@ -15,13 +15,12 @@ logic = helpers.logic
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestDeleteAuth:
-    def test_auth_deleted_users_are_always_unauthorized(self):
+    def test_auth_deleted_users_are_always_unauthorized(self, user):
         def always_success(x, y):
             return {"success": True}
         authz._AuthFunctions._build()
         authz._AuthFunctions._functions["always_success"] = always_success
         username = "deleted_user"
-        user = factories.User()
         username = user["name"]
         user = model.User.get(username)
         user.delete()
@@ -30,9 +29,7 @@ class TestDeleteAuth:
         )
         del authz._AuthFunctions._functions["always_success"]
 
-    def test_only_sysadmins_can_delete_users(self):
-        user = factories.User()
-        sysadmin = factories.Sysadmin()
+    def test_only_sysadmins_can_delete_users(self, user, sysadmin):
         context = {"model": model, "user": user["name"]}
         with pytest.raises(logic.NotAuthorized):
             assert not helpers.call_auth("user_delete", context=context, id=user["id"])

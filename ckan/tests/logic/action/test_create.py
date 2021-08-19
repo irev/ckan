@@ -124,8 +124,8 @@ class TestUserInvite(object):
     def _invite_user_to_group(
         self, email="user@email.com", group=None, role="member"
     ):
-        user = factories.User()
-        group = group or factories.Group(user=user)
+        user = factories.UserFactory()
+        group = group or factories.GroupFactory(user=user)
 
         context = {"user": user["name"]}
         params = {"email": email, "group_id": group["id"], "role": role}
@@ -257,7 +257,7 @@ class TestResourceViewCreate(object):
 
     def _default_resource_view_attributes(self, **kwargs):
         default_attributes = {
-            "resource_id": factories.Resource()["id"],
+            "resource_id": factories.ResourceFactory()["id"],
             "view_type": "image_view",
             "title": "View",
             "description": "A nice view",
@@ -709,27 +709,26 @@ class TestMemberCreate(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestDatasetCreate(object):
-    def test_private_package(self):
-        org = factories.Organization()
+    def test_private_package(self, organization):
         with pytest.raises(logic.ValidationError):
             pkg = helpers.call_action(
                 "package_create", name="random-name", private=True
             )
 
         pkg = helpers.call_action(
-            "package_create", owner_org=org["id"], name="random-name"
+            "package_create", owner_org=organization["id"], name="random-name"
         )
         assert not pkg["private"]
         pkg = helpers.call_action(
             "package_create",
-            owner_org=org["id"],
+            owner_org=organization["id"],
             name="random-name-2",
             private=False,
         )
         assert not pkg["private"]
         pkg = helpers.call_action(
             "package_create",
-            owner_org=org["id"],
+            owner_org=organization["id"],
             name="random-name-3",
             private=True,
         )
@@ -1134,8 +1133,7 @@ def _clear_activities():
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowCommon(object):
-    def test_validation(self):
-        user = factories.User()
+    def test_validation(self, user):
         unfollow_actions = (
             "unfollow_user",
             "unfollow_dataset",
@@ -1172,14 +1170,12 @@ class TestFollowCommon(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowDataset(object):
-    def test_auth(self):
-        user = factories.User()
-        dataset = factories.Dataset()
+    def test_auth(self, user, package):
         context = {"user": "", "ignore_auth": False}
         with pytest.raises(logic.NotAuthorized):
-            helpers.call_action("follow_dataset", context, id=dataset["id"])
+            helpers.call_action("follow_dataset", context, id=package["id"])
         context = {"user": user["name"], "ignore_auth": False}
-        helpers.call_action("follow_dataset", context, id=dataset["id"])
+        helpers.call_action("follow_dataset", context, id=package["id"])
 
     def test_no_activity(self, app, user, package_factory):
         dataset = package_factory(user=user)
@@ -1189,56 +1185,52 @@ class TestFollowDataset(object):
         )
         assert not helpers.call_action("user_activity_list", id=user["id"])
 
-    def test_follow_dataset(self):
-        user = factories.User()
-        dataset = factories.Dataset()
+    def test_follow_dataset(self, user, package):
         context = {"user": user["name"]}
         assert (
-            helpers.call_action("dataset_follower_count", id=dataset["id"])
+            helpers.call_action("dataset_follower_count", id=package["id"])
             == 0
         )
         assert (
-            helpers.call_action("dataset_follower_list", id=dataset["id"])
+            helpers.call_action("dataset_follower_list", id=package["id"])
             == []
         )
         assert not helpers.call_action(
-            "am_following_dataset", context, id=dataset["id"]
+            "am_following_dataset", context, id=package["id"]
         )
 
-        helpers.call_action("follow_dataset", context, id=dataset["id"])
+        helpers.call_action("follow_dataset", context, id=package["id"])
         assert (
-            helpers.call_action("dataset_follower_count", id=dataset["id"])
+            helpers.call_action("dataset_follower_count", id=package["id"])
             == 1
         )
         assert [
             u["name"]
             for u in helpers.call_action(
-                "dataset_follower_list", id=dataset["id"]
+                "dataset_follower_list", id=package["id"]
             )
         ] == [user["name"]]
         assert helpers.call_action(
-            "am_following_dataset", context, id=dataset["id"]
+            "am_following_dataset", context, id=package["id"]
         )
 
-        helpers.call_action("unfollow_dataset", context, id=dataset["id"])
+        helpers.call_action("unfollow_dataset", context, id=package["id"])
         assert (
-            helpers.call_action("dataset_follower_count", id=dataset["id"])
+            helpers.call_action("dataset_follower_count", id=package["id"])
             == 0
         )
         assert (
-            helpers.call_action("dataset_follower_list", id=dataset["id"])
+            helpers.call_action("dataset_follower_list", id=package["id"])
             == []
         )
         assert not helpers.call_action(
-            "am_following_dataset", context, id=dataset["id"]
+            "am_following_dataset", context, id=package["id"]
         )
 
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowGroup(object):
-    def test_auth(self):
-        user = factories.User()
-        group = factories.Group()
+    def test_auth(self, user, group):
         context = {"user": "", "ignore_auth": False}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_action("follow_group", context, id=group["id"])
@@ -1253,9 +1245,7 @@ class TestFollowGroup(object):
         )
         assert not helpers.call_action("user_activity_list", id=user["id"])
 
-    def test_follow_group(self):
-        user = factories.User()
-        group = factories.Group()
+    def test_follow_group(self, user, group):
         context = {"user": user["name"]}
         assert helpers.call_action("group_follower_count", id=group["id"]) == 0
         assert helpers.call_action("group_follower_list", id=group["id"]) == []
@@ -1283,9 +1273,7 @@ class TestFollowGroup(object):
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowOrganization(object):
-    def test_auth(self):
-        user = factories.User()
-        organization = factories.Organization()
+    def test_auth(self, user, organization):
         context = {"user": "", "ignore_auth": False}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_action("follow_group", context, id=organization["id"])
@@ -1300,39 +1288,37 @@ class TestFollowOrganization(object):
         )
         assert not helpers.call_action("user_activity_list", id=user["id"])
 
-    def test_follow_organization(self):
-        user = factories.User()
-        group = factories.Organization()
+    def test_follow_organization(self, user, organization):
         context = {"user": user["name"]}
-        assert helpers.call_action("group_follower_count", id=group["id"]) == 0
-        assert helpers.call_action("group_follower_list", id=group["id"]) == []
+        assert helpers.call_action("group_follower_count", id=organization["id"]) == 0
+        assert helpers.call_action("group_follower_list", id=organization["id"]) == []
         assert not helpers.call_action(
-            "am_following_group", context, id=group["id"]
+            "am_following_group", context, id=organization["id"]
         )
 
-        helpers.call_action("follow_group", context, id=group["id"])
-        assert helpers.call_action("group_follower_count", id=group["id"]) == 1
+        helpers.call_action("follow_group", context, id=organization["id"])
+        assert helpers.call_action("group_follower_count", id=organization["id"]) == 1
         assert [
             u["name"]
-            for u in helpers.call_action("group_follower_list", id=group["id"])
+            for u in helpers.call_action("group_follower_list", id=organization["id"])
         ] == [user["name"]]
         assert helpers.call_action(
-            "am_following_group", context, id=group["id"]
+            "am_following_group", context, id=organization["id"]
         )
 
-        helpers.call_action("unfollow_group", context, id=group["id"])
-        assert helpers.call_action("group_follower_count", id=group["id"]) == 0
-        assert helpers.call_action("group_follower_list", id=group["id"]) == []
+        helpers.call_action("unfollow_group", context, id=organization["id"])
+        assert helpers.call_action("group_follower_count", id=organization["id"]) == 0
+        assert helpers.call_action("group_follower_list", id=organization["id"]) == []
         assert not helpers.call_action(
-            "am_following_group", context, id=group["id"]
+            "am_following_group", context, id=organization["id"]
         )
 
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestFollowUser(object):
-    def test_auth(self):
-        user = factories.User()
-        second_user = factories.User()
+    def test_auth(self, user_factory):
+        user = user_factory()
+        second_user = user_factory()
 
         context = {"user": "", "ignore_auth": False}
         with pytest.raises(logic.NotAuthorized):
@@ -1340,8 +1326,7 @@ class TestFollowUser(object):
         context = {"user": user["name"], "ignore_auth": False}
         helpers.call_action("follow_user", context, id=second_user["id"])
 
-    def test_cannot_follow_myself(self):
-        user = factories.User()
+    def test_cannot_follow_myself(self, user):
         context = {"user": user["name"]}
         with pytest.raises(logic.ValidationError):
             helpers.call_action("follow_user", context, id=user["id"])
@@ -1355,9 +1340,9 @@ class TestFollowUser(object):
         )
         assert not helpers.call_action("user_activity_list", id=user["id"])
 
-    def test_follow_user(self):
-        user = factories.User()
-        another_user = factories.User()
+    def test_follow_user(self, user_factory):
+        user = user_factory()
+        another_user = user_factory()
         context = {"user": user["name"]}
         assert (
             helpers.call_action("user_follower_count", id=another_user["id"])
@@ -1660,8 +1645,8 @@ class TestVocabularyCreate(object):
 
 class TestTagCreate:
     @pytest.mark.usefixtures("clean_db")
-    def test_add_tag_to_vocab(self):
-        vocab = factories.Vocabulary(tags=[{"name": "foo"}])
+    def test_add_tag_to_vocab(self, vocabulary_factory):
+        vocab = vocabulary_factory(tags=[{"name": "foo"}])
         assert set(map(operator.itemgetter("name"), vocab["tags"])) == {"foo"}
         helpers.call_action(
             "tag_create", name="bar", vocabulary_id=vocab["id"]
@@ -1684,78 +1669,68 @@ class TestTagCreate:
             )
 
     @pytest.mark.usefixtures("clean_db")
-    def test_duplicate(self):
-        vocab = factories.Vocabulary(tags=[{"name": "foo"}])
+    def test_duplicate(self, vocabulary_factory):
+        vocab = vocabulary_factory(tags=[{"name": "foo"}])
         with pytest.raises(logic.ValidationError):
             helpers.call_action(
                 "tag_create", name="foo", vocabulary_id=vocab["id"]
             )
 
     @pytest.mark.usefixtures("clean_db")
-    def test_id_not_allowed(self):
-        vocab = factories.Vocabulary()
+    def test_id_not_allowed(self, vocabulary):
         with pytest.raises(logic.ValidationError):
             helpers.call_action(
-                "tag_create", name="foo", id="xxx", vocabulary_id=vocab["id"]
+                "tag_create", name="foo", id="xxx", vocabulary_id=vocabulary["id"]
             )
 
     @pytest.mark.usefixtures("clean_db")
-    def test_name_is_required(self):
-        vocab = factories.Vocabulary()
+    def test_name_is_required(self, vocabulary):
         with pytest.raises(logic.ValidationError):
-            helpers.call_action("tag_create", vocabulary_id=vocab["id"])
+            helpers.call_action("tag_create", vocabulary_id=vocabulary["id"])
 
     @pytest.mark.usefixtures("clean_db")
-    def test_invalid_name(self):
-        vocab = factories.Vocabulary()
+    def test_invalid_name(self, vocabulary):
         for name in ("Not a valid tag name!", "", None):
             with pytest.raises(logic.ValidationError):
                 helpers.call_action(
-                    "tag_create", name=name, vocabulary_id=vocab["id"]
+                    "tag_create", name=name, vocabulary_id=vocabulary["id"]
                 )
 
 
 @pytest.mark.usefixtures("clean_db")
 class TestMemberCreate:
-    def test_member_create_accepts_object_name_or_id(self):
-        org = factories.Organization()
-        package = factories.Dataset()
+    def test_member_create_accepts_object_name_or_id(self, organization, package):
         helpers.call_action(
             "member_create",
             object=package["id"],
-            id=org["id"],
+            id=organization["id"],
             object_type="package",
             capacity="member",
         )
         helpers.call_action(
             "member_create",
             object=package["name"],
-            id=org["id"],
+            id=organization["id"],
             object_type="package",
             capacity="member",
         )
 
-    def test_member_create_raises_if_user_unauthorized_to_update_group(self):
-        org = factories.Organization()
-        pkg = factories.Dataset()
-        user = factories.User()
+    def test_member_create_raises_if_user_unauthorized_to_update_group(self, organization, package, user):
         context = {"ignore_auth": False, "user": user["name"]}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_action(
                 "member_create",
                 context,
-                object=pkg["name"],
-                id=org["id"],
+                object=package["name"],
+                id=organization["id"],
                 object_type="package",
                 capacity="member",
             )
 
-    def test_member_create_raises_if_any_required_parameter_isnt_defined(self):
-        org = factories.Organization()
-        pkg = factories.Dataset()
+    def test_member_create_raises_if_any_required_parameter_isnt_defined(self, organization, package):
         data = dict(
-            object=pkg["name"],
-            id=org["id"],
+            object=package["name"],
+            id=organization["id"],
             object_type="package",
             capacity="member",
         )
@@ -1765,36 +1740,32 @@ class TestMemberCreate:
             with pytest.raises(logic.ValidationError):
                 helpers.call_action("member_create", **payload)
 
-    def test_member_create_raises_if_group_wasnt_found(self):
-        pkg = factories.Dataset()
+    def test_member_create_raises_if_group_wasnt_found(self, package):
         with pytest.raises(logic.NotFound):
             helpers.call_action(
                 "member_create",
-                object=pkg["name"],
+                object=package["name"],
                 id="not-real",
                 object_type="package",
                 capacity="member",
             )
 
-    def test_member_create_raises_if_object_wasnt_found(self):
-        org = factories.Organization()
+    def test_member_create_raises_if_object_wasnt_found(self, organization):
         with pytest.raises(logic.NotFound):
             helpers.call_action(
                 "member_create",
                 object="not-real",
-                id=org["id"],
+                id=organization["id"],
                 object_type="package",
                 capacity="member",
             )
 
-    def test_member_create_raises_if_object_type_is_invalid(self):
-        org = factories.Organization()
-        pkg = factories.Dataset()
+    def test_member_create_raises_if_object_type_is_invalid(self, organization, package):
         with pytest.raises(logic.ValidationError):
             helpers.call_action(
                 "member_create",
-                object=pkg["name"],
-                id=org["id"],
+                object=package["name"],
+                id=organization["id"],
                 object_type="notvalid",
                 capacity="member",
             )

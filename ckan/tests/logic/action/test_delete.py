@@ -57,12 +57,11 @@ class TestDelete:
 
 @pytest.mark.usefixtures("clean_db")
 class TestDeleteResource(object):
-    def test_01_delete_resource(self, app):
-        res = factories.Resource()
-        pkg = helpers.call_action("package_show", id=res["package_id"])
+    def test_01_delete_resource(self, app, resource):
+        pkg = helpers.call_action("package_show", id=resource["package_id"])
         assert len(pkg["resources"]) == 1
-        helpers.call_action("resource_delete", id=res["id"])
-        pkg = helpers.call_action("package_show", id=res["package_id"])
+        helpers.call_action("resource_delete", id=resource["id"])
+        pkg = helpers.call_action("package_show", id=resource["package_id"])
         assert len(pkg["resources"]) == 0
 
 
@@ -161,8 +160,8 @@ class TestDeleteTags(object):
             helpers.call_action("tag_delete", id="not-a-real-id")
 
     @pytest.mark.usefixtures("clean_db")
-    def test_vocab_does_not_exist(self):
-        vocab = factories.Vocabulary(tags=[{"name": "testtag"}])
+    def test_vocab_does_not_exist(self, vocabulary_factory):
+        vocab = vocabulary_factory(tags=[{"name": "testtag"}])
         tag = vocab["tags"][0]
         with pytest.raises(logic.NotFound):
             helpers.call_action(
@@ -170,8 +169,8 @@ class TestDeleteTags(object):
             )
 
     @pytest.mark.usefixtures("clean_db")
-    def test_delete_tag(self):
-        pkg = factories.Dataset(tags=[{"name": "foo"}, {"name": "bar"}])
+    def test_delete_tag(self, package_factory):
+        pkg = package_factory(tags=[{"name": "foo"}, {"name": "bar"}])
         assert len(pkg["tags"]) == 2
         tags = {t["name"] for t in pkg["tags"]}
         assert set(helpers.call_action("tag_list")) == tags
@@ -631,7 +630,6 @@ class TestJobCancel(helpers.FunctionalRQTestBase):
 @pytest.mark.usefixtures(u"clean_db")
 class TestApiToken(object):
     def test_token_revoke(self, user):
-        user = factories.User()
         token = helpers.call_action(
             u"api_token_create",
             context={u"model": model, u"user": user[u"name"]},
@@ -755,9 +753,8 @@ def test_package_delete_removes_collaborations(user, package):
 
 class TestVocabularyDelete(object):
     @pytest.mark.usefixtures("clean_db")
-    def test_basic(self):
-        vocab = factories.Vocabulary()
-        helpers.call_action("vocabulary_delete", id=vocab["id"])
+    def test_basic(self, vocabulary):
+        helpers.call_action("vocabulary_delete", id=vocabulary["id"])
 
         assert helpers.call_action("vocabulary_list") == []
 
@@ -773,45 +770,38 @@ class TestVocabularyDelete(object):
 
 @pytest.mark.usefixtures("clean_db")
 class TestMemberDelete:
-    def test_member_delete_accepts_object_name_or_id(self):
-        org = factories.Organization()
-        user = factories.User()
+    def test_member_delete_accepts_object_name_or_id(self, organization, user):
         helpers.call_action(
             "member_delete",
             object=user["id"],
-            id=org["id"],
+            id=organization["id"],
             object_type="user",
             capacity="member",
         )
         helpers.call_action(
             "member_create",
             object=user["name"],
-            id=org["id"],
+            id=organization["id"],
             object_type="user",
             capacity="member",
         )
 
-    def test_member_delete_raises_if_user_unauthorized_to_update_group(self):
-        org = factories.Organization()
-        pkg = factories.Dataset()
-        user = factories.User()
+    def test_member_delete_raises_if_user_unauthorized_to_update_group(self, organization, user, package):
         context = {"ignore_auth": False, "user": user["name"]}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_action(
                 "member_delete",
                 context,
-                object=pkg["name"],
-                id=org["id"],
+                object=package["name"],
+                id=organization["id"],
                 object_type="package",
                 capacity="member",
             )
 
-    def test_member_delete_raises_if_any_required_parameter_isnt_defined(self):
-        org = factories.Organization()
-        pkg = factories.Dataset()
+    def test_member_delete_raises_if_any_required_parameter_isnt_defined(self, organization, package):
         data = dict(
-            object=pkg["name"],
-            id=org["id"],
+            object=package["name"],
+            id=organization["id"],
             object_type="package",
             capacity="member",
         )
@@ -821,36 +811,32 @@ class TestMemberDelete:
             with pytest.raises(logic.ValidationError):
                 helpers.call_action("member_delete", **payload)
 
-    def test_member_delete_raises_if_group_wasnt_found(self):
-        pkg = factories.Dataset()
+    def test_member_delete_raises_if_group_wasnt_found(self, package):
         with pytest.raises(logic.NotFound):
             helpers.call_action(
                 "member_delete",
-                object=pkg["name"],
+                object=package["name"],
                 id="not-real",
                 object_type="package",
                 capacity="member",
             )
 
-    def test_member_delete_raises_if_object_wasnt_found(self):
-        org = factories.Organization()
+    def test_member_delete_raises_if_object_wasnt_found(self, organization):
         with pytest.raises(logic.NotFound):
             helpers.call_action(
                 "member_delete",
                 object="not-real",
-                id=org["id"],
+                id=organization["id"],
                 object_type="package",
                 capacity="member",
             )
 
-    def test_member_delete_raises_if_object_type_is_invalid(self):
-        org = factories.Organization()
-        pkg = factories.Dataset()
+    def test_member_delete_raises_if_object_type_is_invalid(self, organization, package):
         with pytest.raises(logic.ValidationError):
             helpers.call_action(
                 "member_delete",
-                object=pkg["name"],
-                id=org["id"],
+                object=package["name"],
+                id=organization["id"],
                 object_type="notvalid",
                 capacity="member",
             )

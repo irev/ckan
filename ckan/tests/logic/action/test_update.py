@@ -656,13 +656,12 @@ class TestSendEmailNotifications(object):
             len(mail_server.get_smtp_messages()) == 0
         ), "Notification came out of nowhere"
 
-    def test_single_notification(self, mail_server):
-        pkg = factories.Dataset()
-        user = factories.User(activity_streams_email_notifications=True)
+    def test_single_notification(self, mail_server, user_factory, package):
+        user = user_factory(activity_streams_email_notifications=True)
         helpers.call_action(
-            "follow_dataset", {"user": user["name"]}, id=pkg["id"]
+            "follow_dataset", {"user": user["name"]}, id=package["id"]
         )
-        helpers.call_action("package_update", id=pkg["id"], notes="updated")
+        helpers.call_action("package_update", id=package["id"], notes="updated")
         helpers.call_action("send_email_notifications")
         messages = mail_server.get_smtp_messages()
         assert len(messages) == 1
@@ -673,15 +672,14 @@ class TestSendEmailNotifications(object):
             "1 new activity from CKAN",
         )
 
-    def test_multiple_notifications(self, mail_server):
-        pkg = factories.Dataset()
-        user = factories.User(activity_streams_email_notifications=True)
+    def test_multiple_notifications(self, mail_server, package, user_factory):
+        user = user_factory(activity_streams_email_notifications=True)
         helpers.call_action(
-            "follow_dataset", {"user": user["name"]}, id=pkg["id"]
+            "follow_dataset", {"user": user["name"]}, id=package["id"]
         )
         for i in range(3):
             helpers.call_action(
-                "package_update", id=pkg["id"], notes=f"updated {i} times"
+                "package_update", id=package["id"], notes=f"updated {i} times"
             )
         helpers.call_action("send_email_notifications")
         messages = mail_server.get_smtp_messages()
@@ -693,47 +691,43 @@ class TestSendEmailNotifications(object):
             "3 new activities from CKAN",
         )
 
-    def test_no_notifications_if_dashboard_visited(self, mail_server):
-        pkg = factories.Dataset()
-        user = factories.User(activity_streams_email_notifications=True)
+    def test_no_notifications_if_dashboard_visited(self, mail_server, package, user_factory):
+        user = user_factory(activity_streams_email_notifications=True)
         helpers.call_action(
-            "follow_dataset", {"user": user["name"]}, id=pkg["id"]
+            "follow_dataset", {"user": user["name"]}, id=package["id"]
         )
-        helpers.call_action("package_update", id=pkg["id"], notes="updated")
+        helpers.call_action("package_update", id=package["id"], notes="updated")
         new_activities_count = helpers.call_action(
             "dashboard_new_activities_count",
             {"user": user["name"]},
-            id=pkg["id"],
+            id=package["id"],
         )
         assert new_activities_count == 1
 
         helpers.call_action(
             "dashboard_mark_activities_old",
             {"user": user["name"]},
-            id=pkg["id"],
+            id=package["id"],
         )
         helpers.call_action("send_email_notifications")
         messages = mail_server.get_smtp_messages()
         assert len(messages) == 0
 
-    def test_notifications_disabled_by_default(self):
-        user = factories.User()
+    def test_notifications_disabled_by_default(self, user):
         assert not user["activity_streams_email_notifications"]
 
-    def test_no_emails_when_notifications_disabled(self, mail_server):
-        pkg = factories.Dataset()
-        user = factories.User()
+    def test_no_emails_when_notifications_disabled(self, mail_server, package, user):
         helpers.call_action(
-            "follow_dataset", {"user": user["name"]}, id=pkg["id"]
+            "follow_dataset", {"user": user["name"]}, id=package["id"]
         )
-        helpers.call_action("package_update", id=pkg["id"], notes="updated")
+        helpers.call_action("package_update", id=package["id"], notes="updated")
         helpers.call_action("send_email_notifications")
         messages = mail_server.get_smtp_messages()
         assert len(messages) == 0
         new_activities_count = helpers.call_action(
             "dashboard_new_activities_count",
             {"user": user["name"]},
-            id=pkg["id"],
+            id=package["id"],
         )
         assert new_activities_count == 1
 
@@ -747,13 +741,12 @@ class TestSendEmailNotifications(object):
         assert len(messages) == 0
 
     @pytest.mark.ckan_config("ckan.email_notifications_since", ".000001")
-    def test_email_notifications_since(self, mail_server):
-        pkg = factories.Dataset()
-        user = factories.User(activity_streams_email_notifications=True)
+    def test_email_notifications_since(self, mail_server, package, user_factory):
+        user = user_factory(activity_streams_email_notifications=True)
         helpers.call_action(
-            "follow_dataset", {"user": user["name"]}, id=pkg["id"]
+            "follow_dataset", {"user": user["name"]}, id=package["id"]
         )
-        helpers.call_action("package_update", id=pkg["id"], notes="updated")
+        helpers.call_action("package_update", id=package["id"], notes="updated")
         time.sleep(0.01)
         helpers.call_action("send_email_notifications")
         messages = mail_server.get_smtp_messages()
@@ -2148,27 +2141,26 @@ class TestUserPluginExtras(object):
 
 class TestVocabularyUpdate(object):
     @pytest.mark.usefixtures("clean_db")
-    def test_no_real_update(self):
-        vocab = factories.Vocabulary()
-        updated = helpers.call_action("vocabulary_update", id=vocab["id"])
-        assert vocab == updated
+    def test_no_real_update(self, vocabulary):
+        updated = helpers.call_action("vocabulary_update", id=vocabulary["id"])
+        assert vocabulary == updated
 
         updated = helpers.call_action(
-            "vocabulary_update", id=vocab["id"], name=vocab["name"]
+            "vocabulary_update", id=vocabulary["id"], name=vocabulary["name"]
         )
-        assert vocab == updated
+        assert vocabulary == updated
 
     @pytest.mark.usefixtures("clean_db")
-    def test_update_name(self):
-        vocab = factories.Vocabulary(name="old_name")
+    def test_update_name(self, vocabulary_factory):
+        vocab = vocabulary_factory(name="old_name")
         updated = helpers.call_action(
             "vocabulary_update", id=vocab["id"], name="new_name"
         )
         assert updated["name"] == "new_name"
 
     @pytest.mark.usefixtures("clean_db")
-    def test_add_tags(self):
-        vocab = factories.Vocabulary(name="old_name")
+    def test_add_tags(self, vocabulary_factory):
+        vocab = vocabulary_factory(name="old_name")
         assert vocab["tags"] == []
 
         tags = [{"name": "new test tag one"}, {"name": "new test tag two"}]
@@ -2200,8 +2192,7 @@ class TestVocabularyUpdate(object):
 
     @pytest.mark.parametrize("tags", [])
     @pytest.mark.usefixtures("clean_db")
-    def test_with_bad_tags(self, tags):
-        vocab = factories.Vocabulary()
+    def test_with_bad_tags(self, tags, vocabulary):
         for tags in [
             [{"id": "xxx"}, {"name": "foo"}],
             [{"name": "foo"}, {"name": None}],
@@ -2212,18 +2203,17 @@ class TestVocabularyUpdate(object):
         ]:
             with pytest.raises(logic.ValidationError):
                 helpers.call_action(
-                    "vocabulary_update", id=vocab["id"], tags=tags
+                    "vocabulary_update", id=vocabulary["id"], tags=tags
                 )
 
     @pytest.mark.usefixtures("clean_db")
-    def test_with_no_tags(self):
-        vocab = factories.Vocabulary()
+    def test_with_no_tags(self, vocabulary):
         with pytest.raises(DataError):
-            helpers.call_action("vocabulary_update", id=vocab["id"], tags=None)
+            helpers.call_action("vocabulary_update", id=vocabulary["id"], tags=None)
 
     @pytest.mark.usefixtures("clean_db")
-    def test_clen_tags(self):
-        vocab = factories.Vocabulary(tags=[{"name": "foo"}])
+    def test_clen_tags(self, vocabulary_factory):
+        vocab = vocabulary_factory(tags=[{"name": "foo"}])
         updated = helpers.call_action(
             "vocabulary_update", id=vocab["id"], tags=[]
         )
@@ -2232,11 +2222,9 @@ class TestVocabularyUpdate(object):
 
 @pytest.mark.usefixtures("clean_db")
 class TestTaskStatusUpdate:
-    def test_task_status_update(self):
-        pkg = factories.Dataset()
-
+    def test_task_status_update(self, package):
         task_status = {
-            "entity_id": pkg["id"],
+            "entity_id": package["id"],
             "entity_type": "package",
             "task_type": "test_task",
             "key": "test_key",
@@ -2261,12 +2249,11 @@ class TestTaskStatusUpdate:
         task_status_updated_2.pop("last_updated")
         assert task_status_updated_2 == task_status_updated
 
-    def test_task_status_update_many(self):
-        pkg = factories.Dataset()
+    def test_task_status_update_many(self, package):
         task_statuses = {
             "data": [
                 {
-                    "entity_id": pkg["id"],
+                    "entity_id": package["id"],
                     "entity_type": "package",
                     "task_type": "test_task",
                     "key": "test_task_1",
@@ -2275,7 +2262,7 @@ class TestTaskStatusUpdate:
                     "error": "test_error",
                 },
                 {
-                    "entity_id": pkg["id"],
+                    "entity_id": package["id"],
                     "entity_type": "package",
                     "task_type": "test_task",
                     "key": "test_task_2",
@@ -2300,8 +2287,7 @@ class TestTaskStatusUpdate:
                 i,
             )
 
-    def test_task_status_normal_user_not_authorized(self):
-        user = factories.User()
+    def test_task_status_normal_user_not_authorized(self, user):
         context = {"model": model, "user": user["name"]}
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth("task_status_update", context)
@@ -2310,10 +2296,9 @@ class TestTaskStatusUpdate:
         with pytest.raises(logic.ValidationError):
             helpers.call_action("task_status_update")
 
-    def test_task_status_show(self):
-        pkg = factories.Dataset()
+    def test_task_status_show(self, package):
         task_status = {
-            "entity_id": pkg["id"],
+            "entity_id": package["id"],
             "entity_type": "package",
             "task_type": "test_task",
             "key": "test_task_status_show",
@@ -2347,10 +2332,9 @@ class TestTaskStatusUpdate:
             task_status_updated,
         )
 
-    def test_task_status_delete(self):
-        pkg = factories.Dataset()
+    def test_task_status_delete(self, package):
         task_status = {
-            "entity_id": pkg["id"],
+            "entity_id": package["id"],
             "entity_type": "package",
             "task_type": "test_task",
             "key": "test_task_status_delete",

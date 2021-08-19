@@ -8,7 +8,6 @@ import pytest
 from six import string_types
 
 import ckan.model as model
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 
 logic = helpers.logic

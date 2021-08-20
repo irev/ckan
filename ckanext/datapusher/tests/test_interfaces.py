@@ -10,7 +10,6 @@ import sqlalchemy.orm as orm
 import ckan.plugins as p
 import ckanext.datapusher.interfaces as interfaces
 import ckanext.datastore.backend.postgres as db
-from ckan.tests import helpers, factories
 
 
 class FakeDataPusherPlugin(p.SingletonPlugin):
@@ -36,14 +35,14 @@ class TestInterace(object):
     normal_user = None
 
     @pytest.fixture(autouse=True)
-    def setup_class(self, clean_db, test_request_context):
-        resource = factories.Resource(url_type="datastore")
-        self.dataset = factories.Dataset(resources=[resource])
+    def setup_class(self, clean_db, test_request_context, resource_factory, user_factory, package_factory):
+        resource = resource_factory(url_type="datastore")
+        self.dataset = package_factory(resources=[resource])
         with test_request_context():
-            self.sysadmin_user = factories.User(
+            self.sysadmin_user = user_factory(
                 name="testsysadmin", sysadmin=True
             )
-            self.normal_user = factories.User(name="annafan")
+            self.normal_user = resource_factory(name="annafan")
         engine = db.get_write_engine()
         self.Session = orm.scoped_session(orm.sessionmaker(bind=engine))
 
@@ -77,9 +76,8 @@ class TestInterace(object):
                 },
             )
 
-    def test_after_upload_called(self):
-        dataset = factories.Dataset()
-        resource = factories.Resource(package_id=dataset["id"])
+    def test_after_upload_called(self, resource_factory):
+        resource = resource_factory(package_id=package["id"])
 
         # Push data directly to the DataStore for the resource to be marked as
         # `datastore_active=True`, so the grid view can be created

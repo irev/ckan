@@ -10,7 +10,6 @@ import sqlalchemy.orm as orm
 import ckan.lib.create_test_data as ctd
 import ckan.model as model
 import ckan.plugins as p
-from ckan.tests import factories
 from ckan.tests.helpers import call_action
 import ckanext.datastore.backend.postgres as db
 from ckan.common import config
@@ -284,7 +283,7 @@ class TestDatastoreCreate(object):
     )
     @pytest.mark.ckan_config("ckan.plugins", "datastore datapusher")
     @pytest.mark.usefixtures("with_plugins")
-    def test_create_resource_hooks(self, app):
+    def test_create_resource_hooks(self, app, package):
 
         responses.add(
             responses.POST,
@@ -294,10 +293,9 @@ class TestDatastoreCreate(object):
         )
         responses.add_passthru(config["solr_url"])
 
-        dataset = factories.Dataset()
         resource = call_action(
             "resource_create",
-            package_id=dataset['id'],
+            package_id=package['id'],
             format='CSV',
         )
 
@@ -310,7 +308,7 @@ class TestDatastoreCreate(object):
     )
     @pytest.mark.ckan_config("ckan.plugins", "datastore datapusher")
     @pytest.mark.usefixtures("with_plugins")
-    def test_update_resource_url_hooks(self, app):
+    def test_update_resource_url_hooks(self, app, package):
 
         responses.add(
             responses.POST,
@@ -320,10 +318,9 @@ class TestDatastoreCreate(object):
         )
         responses.add_passthru(config["solr_url"])
 
-        dataset = factories.Dataset()
         resource = call_action(
             "resource_create",
-            package_id=dataset['id'],
+            package_id=package['id'],
             url='http://example.com/old.csv',
             format='CSV',
         )

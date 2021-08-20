@@ -8,7 +8,6 @@ from ckan.lib.helpers import url_for
 
 import ckan.plugins as plugins
 import ckan.tests.helpers as helpers
-import ckan.tests.factories as factories
 import ckanext.example_idatasetform as idf
 
 
@@ -76,8 +75,8 @@ class TestVersion5(object):
             url_for("fancy_type.edit", id="check") == "/fancy_type/edit/check"
         )
 
-    def test_custom_field_with_extras(self):
-        dataset = factories.Dataset(
+    def test_custom_field_with_extras(self, package_factory):
+        dataset = package_factory(
             type='fancy_type',
             name='test-dataset',
             custom_text='custom-text',
@@ -92,8 +91,8 @@ class TestVersion5(object):
             {'key': 'key2', 'value': 'value2'},
         ]
 
-    def test_mixed_extras(self):
-        dataset = factories.Dataset(
+    def test_mixed_extras(self, package_factory):
+        dataset = package_factory(
             type='fancy_type',
             name='test-dataset',
             custom_text='custom-text',
@@ -117,8 +116,7 @@ class TestVersion5(object):
     "clean_db", "clean_index", "with_plugins", "with_request_context"
 )
 class TestUrlsForCustomDatasetType(object):
-    def test_dataset_create_redirects(self, app):
-        user = factories.User()
+    def test_dataset_create_redirects(self, app, user):
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         name = "fancy-urls"
 
@@ -169,11 +167,10 @@ class TestUrlsForCustomDatasetType(object):
             "fancy_type.read", id=name, _external=True
         )
 
-    def test_links_on_edit_pages(self, app):
-        user = factories.User()
+    def test_links_on_edit_pages(self, app, user, package_factory, resource_factory):
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
-        pkg = factories.Dataset(type="fancy_type", user=user)
-        res = factories.Resource(package_id=pkg["id"], user=user)
+        pkg = package_factory(type="fancy_type", user=user)
+        res = resource_factory(package_id=pkg["id"], user=user)
         page = bs4.BeautifulSoup(
             app.get(
                 url_for("fancy_type.edit", id=pkg["name"]), extra_environ=env
@@ -258,11 +255,10 @@ class TestUrlsForCustomDatasetType(object):
             _external=True,
         )
 
-    def test_links_on_read_pages(self, app):
-        user = factories.User()
+    def test_links_on_read_pages(self, app, user, package_factory, resource_factory):
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
-        pkg = factories.Dataset(type="fancy_type", user=user)
-        res = factories.Resource(package_id=pkg["id"], user=user)
+        pkg = package_factory(type="fancy_type", user=user)
+        res = resource_factory(package_id=pkg["id"], user=user)
         page = bs4.BeautifulSoup(
             app.get(
                 url_for("fancy_type.read", id=pkg["name"]), extra_environ=env
@@ -511,8 +507,7 @@ class TestDatasetMultiTypes(object):
 
     @pytest.mark.usefixtures('clean_db')
     @pytest.mark.parametrize('type_', ['first', 'second'])
-    def test_template_without_options(self, type_, app):
-        user = factories.User()
+    def test_template_without_options(self, type_, app, user):
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
 
         resp = app.get(
@@ -521,8 +516,8 @@ class TestDatasetMultiTypes(object):
 
     @pytest.mark.usefixtures('clean_db')
     @pytest.mark.parametrize('type_', ['first', 'second'])
-    def test_template_with_options(self, type_, app):
-        dataset = factories.Dataset(type=type_)
+    def test_template_with_options(self, type_, app, package_factory):
+        dataset = package_factory(type=type_)
         url = url_for(type_ + '.read', id=dataset['name'])
         resp = app.get(url, status=200)
         assert resp.body == 'Hello, {}!'.format(type_)

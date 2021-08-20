@@ -8,7 +8,7 @@ import ckan.lib.helpers as h
 import ckanext.reclineview.plugin as plugin
 import ckan.lib.create_test_data as create_test_data
 
-from ckan.tests import helpers, factories
+from ckan.tests import helpers
 
 
 @pytest.mark.ckan_config('ckan.legacy_templates', 'false')
@@ -75,10 +75,9 @@ class TestReclineView(BaseTestReclineViewBase):
 @pytest.mark.usefixtures("clean_db", "with_plugins")
 class TestReclineViewDatastoreOnly(object):
 
-    def test_create_datastore_only_view(self, app):
-        dataset = factories.Dataset()
+    def test_create_datastore_only_view(self, app, package):
         data = {
-            'resource': {'package_id': dataset['id']},
+            'resource': {'package_id': package['id']},
             'fields': [{'id': 'a'}, {'id': 'b'}],
             'records': [{'a': 1, 'b': 'xyz'}, {'a': 2, 'b': 'zzz'}]
         }
@@ -86,8 +85,8 @@ class TestReclineViewDatastoreOnly(object):
 
         resource_id = result['resource_id']
 
-        url = h.url_for('{}_resource.read'.format(dataset['type']),
-                        id=dataset['id'], resource_id=resource_id)
+        url = h.url_for('{}_resource.read'.format(package['type']),
+                        id=package['id'], resource_id=resource_id)
 
         result = app.get(url)
 

@@ -3,9 +3,6 @@ import pytest
 import six
 import bs4
 
-import ckan.tests.factories as factories
-
-
 @pytest.mark.ckan_config(u"ckan.plugins", u"example_humanizer")
 @pytest.mark.usefixtures(u"clean_db", u"with_plugins", u"with_request_context")
 class TestExampleHumanizer(object):
@@ -15,8 +12,7 @@ class TestExampleHumanizer(object):
         (u'/group', u"Groups", u"Add Group"),
         (u'/custom_group', u"Custom groups", u"Create new Custom group"),
     ])
-    def test_original_translations(self, app, url, breadcrumb, button):
-        user = factories.User()
+    def test_original_translations(self, app, url, breadcrumb, button, user):
         env = {u"REMOTE_USER": six.ensure_str(user[u"name"])}
         resp = app.get(url, extra_environ=env)
         page = bs4.BeautifulSoup(resp.body)

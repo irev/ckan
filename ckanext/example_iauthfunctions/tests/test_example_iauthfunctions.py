@@ -5,7 +5,6 @@
 import pytest
 
 import ckan.logic as logic
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 from ckan.plugins.toolkit import NotAuthorized, ObjectNotFound
 
@@ -14,7 +13,7 @@ from ckan.plugins.toolkit import NotAuthorized, ObjectNotFound
                          'example_iauthfunctions_v6_parent_auth_functions')
 @pytest.mark.usefixtures('clean_db', 'with_plugins', 'with_request_context')
 class TestAuthV6(object):
-    def test_resource_delete_editor(self):
+    def test_resource_delete_editor(self, user, organization_factory, package_factory, resource_factory):
         '''Normally organization admins can delete resources
         Our plugin prevents this by blocking delete organization.
 
@@ -22,13 +21,13 @@ class TestAuthV6(object):
         is checked for showing this)
 
         '''
-        user = factories.User()
-        owner_org = factories.Organization(users=[{
+
+        owner_org = organization_factory(users=[{
             'name': user['id'],
             'capacity': 'admin'
         }])
-        dataset = factories.Dataset(owner_org=owner_org['id'])
-        resource = factories.Resource(package_id=dataset['id'])
+        dataset = package_factory(owner_org=owner_org['id'])
+        resource = resource_factory(package_id=dataset['id'])
         with pytest.raises(logic.NotAuthorized) as e:
             logic.check_access('resource_delete', {'user': user['name']},
                                {'id': resource['id']})
@@ -36,7 +35,7 @@ class TestAuthV6(object):
         assert e.value.message == 'User %s not authorized to delete resource %s' % (
             user['name'], resource['id'])
 
-    def test_resource_delete_sysadmin(self):
+    def test_resource_delete_sysadmin(self, sysadmin, organization_factory, package_factory, resource_factory):
         '''Normally organization admins can delete resources
         Our plugin prevents this by blocking delete organization.
 
@@ -44,14 +43,13 @@ class TestAuthV6(object):
         is checked for showing this)
 
         '''
-        user = factories.Sysadmin()
-        owner_org = factories.Organization(users=[{
-            'name': user['id'],
+        owner_org = organization_factory(users=[{
+            'name': sysadmin['id'],
             'capacity': 'admin'
         }])
-        dataset = factories.Dataset(owner_org=owner_org['id'])
-        resource = factories.Resource(package_id=dataset['id'])
-        assert logic.check_access('resource_delete', {'user': user['name']},
+        dataset = package_factory(owner_org=owner_org['id'])
+        resource = resource_factory(package_id=dataset['id'])
+        assert logic.check_access('resource_delete', {'user': sysadmin['name']},
                                   {'id': resource['id']})
 
 
@@ -61,13 +59,12 @@ class TestAuthV6(object):
 @pytest.mark.usefixtures('clean_db', 'with_plugins', 'with_request_context')
 class TestAuthV5(object):
 
-    def test_sysadmin_can_create_group_when_config_is_False(self):
-        sysadmin = factories.Sysadmin()
+    def test_sysadmin_can_create_group_when_config_is_False(self, sysadmin):
         context = {'ignore_auth': False, 'user': sysadmin['name']}
         helpers.call_action('group_create', context, name='test-group')
 
-    def test_user_cannot_create_group_when_config_is_False(self):
-        user = factories.User()
+    def test_user_cannot_create_group_when_config_is_False(self, user):
+
         context = {'ignore_auth': False, 'user': user['name']}
         with pytest.raises(NotAuthorized):
             helpers.call_action('group_create', context, name='test-group')
@@ -84,13 +81,12 @@ class TestAuthV5(object):
 @pytest.mark.usefixtures('clean_db', 'with_plugins', 'with_request_context')
 class testAuthV5WithUserCreateGroup(object):
 
-    def test_sysadmin_can_create_group_when_config_is_True(self):
-        sysadmin = factories.Sysadmin()
+    def test_sysadmin_can_create_group_when_config_is_True(self, sysadmin):
         context = {'ignore_auth': False, 'user': sysadmin['name']}
         helpers.call_action('group_create', context, name='test-group')
 
-    def test_user_can_create_group_when_config_is_True(self):
-        user = factories.User()
+    def test_user_can_create_group_when_config_is_True(self, user):
+
         context = {'ignore_auth': False, 'user': user['name']}
         helpers.call_action('group_create', context, name='test-group')
 
@@ -101,17 +97,15 @@ class testAuthV5WithUserCreateGroup(object):
 
 
 @pytest.fixture
-def curators_group():
+def curators_group(sysadmin, user_factory):
     '''This is a helper method for test methods to call when they want
     the 'curators' group to be created.
     '''
-    sysadmin = factories.Sysadmin()
-
     # Create a user who will *not* be a member of the curators group.
-    noncurator = factories.User()
+    noncurator = user_factory()
 
     # Create a user who will be a member of the curators group.
-    curator = factories.User()
+    curator = user_factory()
 
     # Create the curators group, with the 'curator' user as a member.
     users = [{'name': curator['name'], 'capacity': 'member'}]
@@ -126,10 +120,9 @@ def curators_group():
 
 @pytest.mark.ckan_config('ckan.plugins', 'example_iauthfunctions_v4')
 @pytest.mark.usefixtures('clean_db', 'with_plugins', 'with_request_context')
-def test_group_create_with_no_curators_group():
+def test_group_create_with_no_curators_group(sysadmin):
     '''Test that group_create doesn't crash when there's no curators group.
     '''
-    sysadmin = factories.Sysadmin()
 
     # Make sure there's no curators group.
     assert 'curators' not in helpers.call_action('group_list', {})
@@ -184,7 +177,7 @@ def test_group_create_with_curator(curators_group):
 @pytest.mark.ckan_config('ckan.plugins', 'example_iauthfunctions_v3')
 @pytest.mark.usefixtures('clean_db', 'with_plugins', 'with_request_context')
 class TestExampleIAuthFunctionsPluginV3(object):
-    def test_group_create_with_no_curators_group_v3(self):
+    def test_group_create_with_no_curators_group_v3(self, user):
         '''Test that group_create returns a 404 when there's no curators group.
 
         With this version of the plugin group_create returns a spurious 404
@@ -192,7 +185,7 @@ class TestExampleIAuthFunctionsPluginV3(object):
         '''
         assert 'curators' not in helpers.call_action('group_list', {})
 
-        user = factories.User()
+
 
         context = {'ignore_auth': False, 'user': user['name']}
         with pytest.raises(ObjectNotFound):

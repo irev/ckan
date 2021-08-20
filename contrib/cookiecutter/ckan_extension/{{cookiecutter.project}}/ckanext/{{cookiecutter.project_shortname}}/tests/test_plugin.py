@@ -16,12 +16,10 @@ reset the database:
 
     import pytest
 
-    from ckan.tests import factories
-
     @pytest.mark.usefixtures("clean_db")
-    def test_some_action():
+    def test_some_action(package_factory):
 
-        dataset = factories.Dataset()
+        dataset = package_factory()
 
         # ...
 

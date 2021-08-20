@@ -6,7 +6,7 @@ import unittest.mock as mock
 import pytest
 from ckan.logic import _actions
 
-from ckan.tests import helpers, factories
+from ckan.tests import helpers
 
 
 def _pending_task(resource_id):
@@ -25,11 +25,10 @@ def _pending_task(resource_id):
 @pytest.mark.ckan_config("ckan.plugins", "datapusher datastore")
 @pytest.mark.usefixtures("clean_db", "with_plugins")
 class TestSubmit:
-    def test_submit(self, monkeypatch):
+    def test_submit(self, monkeypatch, package):
         """Auto-submit when creating a resource with supported format.
 
         """
-        dataset = factories.Dataset()
         func = mock.Mock()
         monkeypatch.setitem(_actions, 'datapusher_submit', func)
         func.assert_not_called()
@@ -37,25 +36,24 @@ class TestSubmit:
         helpers.call_action(
             "resource_create",
             {},
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.csv",
             format="CSV",
         )
 
         func.assert_called()
 
-    def test_submit_when_url_changes(self, monkeypatch):
+    def test_submit_when_url_changes(self, monkeypatch, package):
         """Auto-submit when URL changes from unsupported to supported one.
 
         """
-        dataset = factories.Dataset()
         func = mock.Mock()
         monkeypatch.setitem(_actions, 'datapusher_submit', func)
 
         resource = helpers.call_action(
             "resource_create",
             {},
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.pdf",
         )
 
@@ -65,22 +63,21 @@ class TestSubmit:
             "resource_update",
             {},
             id=resource["id"],
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.csv",
             format="CSV",
         )
 
         func.assert_called()
 
-    def test_does_not_submit_while_ongoing_job(self, monkeypatch):
-        dataset = factories.Dataset()
+    def test_does_not_submit_while_ongoing_job(self, monkeypatch, package):
         func = mock.Mock()
         monkeypatch.setitem(_actions, 'datapusher_submit', func)
 
         resource = helpers.call_action(
             "resource_create",
             {},
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.CSV",
             format="CSV",
         )
@@ -98,7 +95,7 @@ class TestSubmit:
             "resource_update",
             {},
             id=resource["id"],
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.csv",
             format="CSV",
             description="Test",
@@ -106,15 +103,14 @@ class TestSubmit:
         # Not called
         func.assert_not_called()
 
-    def test_resubmits_if_url_changes_in_the_meantime(self, monkeypatch):
-        dataset = factories.Dataset()
+    def test_resubmits_if_url_changes_in_the_meantime(self, monkeypatch, package):
         func = mock.Mock()
         monkeypatch.setitem(_actions, 'datapusher_submit', func)
 
         resource = helpers.call_action(
             "resource_create",
             {},
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.csv",
             format="CSV",
         )
@@ -132,7 +128,7 @@ class TestSubmit:
             "resource_update",
             {},
             id=resource["id"],
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/another.file.csv",
             format="CSV",
         )
@@ -155,15 +151,14 @@ class TestSubmit:
         # datapusher_submit was called again
         func.assert_called()
 
-    def test_resubmits_if_upload_changes_in_the_meantime(self, monkeypatch):
-        dataset = factories.Dataset()
+    def test_resubmits_if_upload_changes_in_the_meantime(self, monkeypatch, package):
         func = mock.Mock()
         monkeypatch.setitem(_actions, 'datapusher_submit', func)
 
         resource = helpers.call_action(
             "resource_create",
             {},
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.csv",
             format="CSV",
         )
@@ -181,7 +176,7 @@ class TestSubmit:
             "resource_update",
             {},
             id=resource["id"],
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.csv",
             format="CSV",
             last_modified=datetime.datetime.utcnow().isoformat(),
@@ -205,16 +200,15 @@ class TestSubmit:
         func.assert_called()
 
     def test_does_not_resubmit_if_a_resource_field_changes_in_the_meantime(
-            self, monkeypatch
+            self, monkeypatch, package
     ):
-        dataset = factories.Dataset()
         func = mock.Mock()
         monkeypatch.setitem(_actions, 'datapusher_submit', func)
 
         resource = helpers.call_action(
             "resource_create",
             {},
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.csv",
             format="CSV",
         )
@@ -233,7 +227,7 @@ class TestSubmit:
             "resource_update",
             {},
             id=resource["id"],
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.csv",
             format="CSV",
             description="Test",
@@ -257,16 +251,15 @@ class TestSubmit:
         func.assert_not_called()
 
     def test_does_not_resubmit_if_a_dataset_field_changes_in_the_meantime(
-            self, monkeypatch
+            self, monkeypatch, package
     ):
-        dataset = factories.Dataset()
         func = mock.Mock()
         monkeypatch.setitem(_actions, 'datapusher_submit', func)
 
         resource = helpers.call_action(
             "resource_create",
             {},
-            package_id=dataset["id"],
+            package_id=package["id"],
             url="http://example.com/file.csv",
             format="CSV",
         )
@@ -283,7 +276,7 @@ class TestSubmit:
         helpers.call_action(
             "package_update",
             {},
-            id=dataset["id"],
+            id=package["id"],
             notes="Test notes",
             resources=[resource],
         )
@@ -304,7 +297,7 @@ class TestSubmit:
         # Not called
         func.assert_not_called()
 
-    def test_duplicated_tasks(self, app):
+    def test_duplicated_tasks(self, app, user, resource_factory):
         def submit(res, user):
             return helpers.call_action(
                 "datapusher_submit",
@@ -312,8 +305,7 @@ class TestSubmit:
                 resource_id=res["id"],
             )
 
-        user = factories.User()
-        res = factories.Resource(user=user)
+        res = resource_factory(user=user)
 
         with app.flask_app.test_request_context():
             with mock.patch("requests.post") as r_mock:
@@ -327,20 +319,18 @@ class TestSubmit:
                 assert r_mock.call_count == 1
 
     @pytest.mark.usefixtures("with_request_context")
-    def test_task_status_changes(self, create_with_upload):
+    def test_task_status_changes(self, create_with_upload, package, user):
         """While updating task status, datapusher commits changes to database.
 
         Make sure that changes to task_status won't close session that is still
         used on higher levels of API for resource updates.
 
         """
-        user = factories.User()
-        dataset = factories.Dataset()
         context = {"user": user["name"]}
         resource = create_with_upload(
-            "id,name\n1,2\n3,4", "file.csv", package_id=dataset["id"],
+            "id,name\n1,2\n3,4", "file.csv", package_id=package["id"],
             context=context)
 
         create_with_upload(
-            "id,name\n1,2\n3,4", "file.csv", package_id=dataset["id"],
+            "id,name\n1,2\n3,4", "file.csv", package_id=package["id"],
             id=resource["id"], context=context, action="resource_update")

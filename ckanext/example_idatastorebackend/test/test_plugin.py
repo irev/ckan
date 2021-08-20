@@ -5,7 +5,6 @@ from unittest.mock import patch, Mock, call
 import pytest
 
 from ckan.common import config
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 from ckanext.datastore.backend import DatastoreBackend
 from ckanext.datastore.backend.postgres import DatastorePostgresqlBackend
@@ -56,7 +55,7 @@ class TestExampleIDatastoreBackendPlugin():
     @pytest.mark.ckan_config(u"ckan.datastore.write_url", u"sqlite://x")
     @pytest.mark.ckan_config(u"ckan.datastore.read_url", u"sqlite://x")
     @patch(class_to_patch + u"._get_engine")
-    def test_backend_functionality(self, get_engine):
+    def test_backend_functionality(self, get_engine, resource_factory):
         engine = get_engine()
         execute = engine.execute
         fetchall = execute().fetchall
@@ -71,7 +70,7 @@ class TestExampleIDatastoreBackendPlugin():
             {u"a": u"z"},
         ]
         DatastoreBackend.set_active_backend(config)
-        res = factories.Resource(url_type=u"datastore")
+        res = resource_factory(url_type=u"datastore")
         helpers.call_action(
             u"datastore_create",
             resource_id=res["id"],

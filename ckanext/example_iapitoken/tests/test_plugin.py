@@ -5,7 +5,6 @@ import pytest
 import six
 
 import ckan.model as model
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 import ckan.plugins.toolkit as tk
 
@@ -13,8 +12,7 @@ import ckan.plugins.toolkit as tk
 @pytest.mark.ckan_config(u"ckan.plugins", u"example_iapitoken")
 @pytest.mark.usefixtures(u"clean_db", u"with_plugins")
 class TestIApiTokenPlugin(object):
-    def test_token_is_encoded(self):
-        user = factories.User()
+    def test_token_is_encoded(self, user):
         data = helpers.call_action(
             u"api_token_create",
             context={u"model": model, u"user": user[u"name"]},
@@ -25,8 +23,7 @@ class TestIApiTokenPlugin(object):
         assert decoded[u"jti"].startswith(u"!")
         assert decoded[u"jti"].endswith(u"!")
 
-    def test_extra_info_available(self):
-        user = factories.User()
+    def test_extra_info_available(self, user):
         data = helpers.call_action(
             u"api_token_create",
             context={u"model": model, u"user": user[u"name"]},
@@ -35,8 +32,7 @@ class TestIApiTokenPlugin(object):
         )
         assert data[u"hello"] == u"world"
 
-    def test_token_is_removed_on_second_use(self, app):
-        user = factories.User()
+    def test_token_is_removed_on_second_use(self, app, user):
         data = helpers.call_action(
             u"api_token_create",
             context={u"model": model, u"user": user[u"name"]},

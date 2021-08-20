@@ -5,15 +5,13 @@ import ckan.model as model
 import ckan.logic as logic
 import ckan.plugins as p
 from ckan.logic.action import get_domain_object
-from ckan.tests import factories, helpers
+from ckan.tests import helpers
 
 
 @pytest.mark.usefixtures("clean_db")
-def test_32_get_domain_object():
-    pkg = factories.Dataset()
-    group = factories.Group()
-    assert get_domain_object(model, pkg["name"]).name == pkg["name"]
-    assert get_domain_object(model, pkg["id"]).name == pkg["name"]
+def test_32_get_domain_object(package, group):
+    assert get_domain_object(model, package["name"]).name == package["name"]
+    assert get_domain_object(model, package["id"]).name == package["name"]
 
     assert get_domain_object(model, group["name"]).name == group["name"]
     assert get_domain_object(model, group["id"]).name == group["name"]
@@ -79,24 +77,24 @@ class MockPackageSearchPlugin(p.SingletonPlugin):
 @pytest.mark.ckan_config("ckan.plugins", "mock_search_plugin")
 @pytest.mark.usefixtures("clean_db", "clean_index", "with_plugins")
 class TestSearchPluginInterface(object):
-    def test_search_plugin_interface_search(self):
+    def test_search_plugin_interface_search(self, package_factory):
         avoid = "Tolstoy"
-        factories.Dataset(title=avoid)
+        package_factory(title=avoid)
         result = helpers.call_action(
             "package_search", q="*:*", extras={"ext_avoid": avoid}
         )
         assert result["count"] == 0
 
-    def test_search_plugin_interface_abort(self):
-        factories.Dataset()
+    def test_search_plugin_interface_abort(self, package_factory):
+        package_factory()
         result = helpers.call_action(
             "package_search", q="*:*", extras={"ext_abort": True}
         )
         assert result["count"] == 0
 
-    def test_before_index(self):
-        factories.Dataset()
-        factories.Dataset()
+    def test_before_index(self, package_factory):
+        package_factory()
+        package_factory()
         result = helpers.call_action("package_search", q="aaaaaaaa")
         assert result["count"] == 0
 
@@ -104,9 +102,9 @@ class TestSearchPluginInterface(object):
         result = helpers.call_action("package_search", q="abcabcabc")
         assert result["count"] == 2
 
-    def test_before_view(self, app):
-        pkg = factories.Dataset()
-        pkg = factories.Dataset()
+    def test_before_view(self, app, package_factory):
+        package_factory()
+        pkg = package_factory()
 
         res = app.get("/dataset/" + pkg["id"])
         assert "string_not_found_in_rest_of_template" in res

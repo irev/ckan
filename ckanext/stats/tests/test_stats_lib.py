@@ -2,11 +2,8 @@
 
 import pytest
 import copy
-import datetime
 
 from ckan import model
-from ckan.tests import factories
-
 
 from ckanext.stats.stats import Stats
 
@@ -16,26 +13,30 @@ from ckanext.stats.stats import Stats
 @pytest.mark.freeze_time
 class TestStatsPlugin(object):
     @pytest.fixture(autouse=True)
-    def initial_data(self, clean_db, with_request_context, freezer):
+    def initial_data(
+            self, clean_db, with_request_context, freezer,
+            user_factory, organization_factory, package_factory, group_factory,
+            activity_factory
+    ):
         # week 1
         freezer.move_to('2011-1-5')
-        user = factories.User(name="bob")
+        user = user_factory(name="bob")
         org_users = [{"name": user["name"], "capacity": "editor"}]
-        org1 = factories.Organization(name="org1", users=org_users)
-        group2 = factories.Group()
+        org1 = organization_factory(name="org1", users=org_users)
+        group2 = group_factory()
         tag1 = {"name": "tag1"}
         tag2 = {"name": "tag2"}
-        dataset1 = factories.Dataset(
+        dataset1 = package_factory(
             name="test1", owner_org=org1["id"], tags=[tag1], user=user
         )
-        dataset2 = factories.Dataset(
+        dataset2 = package_factory(
             name="test2",
             owner_org=org1["id"],
             groups=[{"name": group2["name"]}],
             tags=[tag1],
             user=user,
         )
-        dataset3 = factories.Dataset(
+        dataset3 = package_factory(
             name="test3",
             owner_org=org1["id"],
             groups=[{"name": group2["name"]}],
@@ -43,12 +44,12 @@ class TestStatsPlugin(object):
             user=user,
             private=True,
         )
-        dataset4 = factories.Dataset(name="test4", user=user)
+        dataset4 = package_factory(name="test4", user=user)
 
         # week 2
         freezer.move_to('2011-1-12')
         model.Package.by_name(u'test2').delete()
-        activity2 = factories.Activity(
+        activity_factory(
             user_id=user["id"],
             object_id=dataset2["id"],
             activity_type="deleted package",
@@ -62,7 +63,7 @@ class TestStatsPlugin(object):
         dataset3['title'] = "Test 3"
         model.repo.commit_and_remove()
         dataset1['title'] = 'Test 1'
-        factories.Activity(
+        activity_factory(
             user_id=user["id"],
             object_id=dataset1["id"],
             activity_type="changed package",
@@ -71,7 +72,7 @@ class TestStatsPlugin(object):
         freezer.move_to('2011-1-20')
         model.repo.commit_and_remove()
         dataset4['title'] = 'Test 4'
-        factories.Activity(
+        activity_factory(
             user_id=user["id"],
             object_id=dataset4["id"],
             activity_type="changed package",
@@ -84,7 +85,7 @@ class TestStatsPlugin(object):
         dataset3['notes'] = "Test 3 notes"
         model.repo.commit_and_remove()
         dataset4['notes'] = 'test4 dataset'
-        factories.Activity(
+        activity_factory(
             user_id=user["id"],
             object_id=dataset4["id"],
             activity_type="changed package",

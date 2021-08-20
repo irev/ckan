@@ -6,7 +6,6 @@ import sqlalchemy.exc
 
 import ckan.lib.jobs as jobs
 import ckan.plugins as p
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 import ckanext.datastore.backend as backend
 import ckanext.datastore.backend.postgres as db
@@ -169,9 +168,9 @@ def test_upsert_with_insert_method_and_invalid_data(mock_get_fields_function):
 class TestGetAllResourcesIdsInDatastore(object):
     @pytest.mark.ckan_config(u"ckan.plugins", u"datastore")
     @pytest.mark.usefixtures(u"with_plugins", u"clean_db")
-    def test_get_all_resources_ids_in_datastore(self):
-        resource_in_datastore = factories.Resource()
-        resource_not_in_datastore = factories.Resource()
+    def test_get_all_resources_ids_in_datastore(self, resource_factory):
+        resource_in_datastore = resource_factory()
+        resource_not_in_datastore = resource_factory()
         data = {"resource_id": resource_in_datastore["id"], "force": True}
         helpers.call_action("datastore_create", **data)
 
@@ -204,13 +203,12 @@ class TestBackgroundJobs(helpers.RQTestBase):
     """
     @pytest.mark.ckan_config(u"ckan.plugins", u"datastore")
     @pytest.mark.usefixtures(u"with_plugins", u"clean_db", u"with_request_context")
-    def test_worker_datastore_access(self, app):
+    def test_worker_datastore_access(self, app, package):
         """
         Test DataStore access from within a worker.
         """
-        pkg = factories.Dataset()
         data = {
-            "resource": {"package_id": pkg["id"]},
+            "resource": {"package_id": package["id"]},
             "fields": [{"id": "value", "type": "int"}],
         }
 

@@ -3,7 +3,6 @@
 import pytest
 import ckan.plugins as p
 import ckan.tests.helpers as helpers
-import ckan.tests.factories as factories
 
 
 @pytest.mark.ckan_config("ckan.plugins", "datastore sample_datastore_plugin")
@@ -158,9 +157,8 @@ def test_datastore_delete_insecure_filter():
     assert result["total"] == 3, result
 
 
-def _create_datastore_resource(records):
-    dataset = factories.Dataset()
-    resource = factories.Resource(package=dataset)
+def _create_datastore_resource(records, package, resource_factory):
+    resource = resource_factory(package=package)
 
     data = {"resource_id": resource["id"], "force": True, "records": records}
 

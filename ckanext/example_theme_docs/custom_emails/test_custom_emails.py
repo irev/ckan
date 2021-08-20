@@ -6,7 +6,6 @@ import pytest
 
 import ckan.model as model
 import ckan.lib.mailer as mailer
-from ckan.tests import factories
 from ckan.lib.base import render
 from ckan.common import config
 
@@ -25,8 +24,7 @@ class TestExampleCustomEmailsPlugin(MailerBase):
         with open(os.path.join(templates_path, name), "r") as f:
             return f.read()
 
-    def test_reset_password_custom_subject(self, mail_server):
-        user = factories.User()
+    def test_reset_password_custom_subject(self, mail_server, user):
         user_obj = model.User.by_name(user["name"])
 
         mailer.send_reset_link(user_obj)
@@ -45,8 +43,7 @@ class TestExampleCustomEmailsPlugin(MailerBase):
         assert expected == subject
         assert "**test**" in subject
 
-    def test_reset_password_custom_body(self, mail_server):
-        user = factories.User()
+    def test_reset_password_custom_body(self, mail_server, user):
         user_obj = model.User.by_name(user["name"])
 
         mailer.send_reset_link(user_obj)
@@ -61,8 +58,7 @@ class TestExampleCustomEmailsPlugin(MailerBase):
         assert expected == body
         assert "**test**" in body
 
-    def test_invite_user_custom_subject(self, mail_server):
-        user = factories.User()
+    def test_invite_user_custom_subject(self, mail_server, user):
         user_obj = model.User.by_name(user["name"])
 
         mailer.send_invite(user_obj)
@@ -81,8 +77,7 @@ class TestExampleCustomEmailsPlugin(MailerBase):
         assert expected == subject
         assert "**test**" in subject
 
-    def test_invite_user_custom_body(self, mail_server):
-        user = factories.User()
+    def test_invite_user_custom_body(self, mail_server, user):
         user_obj = model.User.by_name(user["name"])
 
         mailer.send_invite(user_obj)

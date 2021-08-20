@@ -2,15 +2,13 @@
 
 import pytest
 import six
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 from ckan.lib import helpers as template_helpers
 
 
 @pytest.mark.ckan_config("ckan.plugins", "datastore")
 @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-def test_info_success():
-    resource = factories.Resource()
+def test_info_success(resource):
     data = {
         "resource_id": resource["id"],
         "force": True,
@@ -55,11 +53,10 @@ def test_info_success():
 
 @pytest.mark.ckan_config("ckan.plugins", "datastore")
 @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-def test_api_info(app):
-    dataset = factories.Dataset()
-    resource = factories.Resource(
+def test_api_info(app, package, resource_factory):
+    resource = resource_factory(
         id="588dfa82-760c-45a2-b78a-e3bc314a4a9b",
-        package_id=dataset["id"],
+        package_id=package["id"],
         datastore_active=True,
     )
 

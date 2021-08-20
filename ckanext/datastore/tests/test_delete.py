@@ -9,7 +9,6 @@ import ckan.lib.create_test_data as ctd
 import ckan.model as model
 from ckan.tests import helpers
 from ckan.plugins.toolkit import ValidationError
-import ckan.tests.factories as factories
 from ckan.logic import NotFound
 import ckanext.datastore.backend.postgres as db
 from ckanext.datastore.tests.helpers import (
@@ -23,8 +22,7 @@ from ckanext.datastore.tests.helpers import (
 class TestDatastoreDelete(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_delete_basic(self):
-        resource = factories.Resource()
+    def test_delete_basic(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -67,8 +65,7 @@ class TestDatastoreDelete(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_calculate_record_count_is_false(self):
-        resource = factories.Resource()
+    def test_calculate_record_count_is_false(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -94,8 +91,7 @@ class TestDatastoreDelete(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     @pytest.mark.flaky(reruns=2)  # because analyze is sometimes delayed
-    def test_calculate_record_count(self):
-        resource = factories.Resource()
+    def test_calculate_record_count(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -190,8 +186,7 @@ class TestDatastoreDeleteLegacy(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("with_plugins", "with_request_context")
-    def test_datastore_deleted_during_resource_deletion(self):
-        package = factories.Dataset()
+    def test_datastore_deleted_during_resource_deletion(self, package):
         data = {
             "resource": {
                 "boo%k": "crime",
@@ -209,8 +204,7 @@ class TestDatastoreDeleteLegacy(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_datastore_deleted_during_resource_only_for_deleted_resource(self):
-        package = factories.Dataset()
+    def test_datastore_deleted_during_resource_only_for_deleted_resource(self, package):
         data = {
             "boo%k": "crime",
             "author": ["tolstoy", "dostoevsky"],

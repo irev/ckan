@@ -7,7 +7,6 @@ import sqlalchemy.orm as orm
 import ckan.lib.create_test_data as ctd
 import ckan.model as model
 import ckan.plugins as p
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 import ckanext.datastore.backend.postgres as db
 from ckan.common import config
@@ -53,8 +52,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_works_with_empty_array_in_json_field(self):
-        package = factories.Dataset()
+    def test_create_works_with_empty_array_in_json_field(self, package):
         data = {
             "resource": {"package_id": package["id"]},
             "fields": [
@@ -68,8 +66,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_works_with_empty_object_in_json_field(self):
-        package = factories.Dataset()
+    def test_create_works_with_empty_object_in_json_field(self, package):
         data = {
             "resource": {"package_id": package["id"]},
             "fields": [
@@ -83,8 +80,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_creates_index_on_primary_key(self):
-        package = factories.Dataset()
+    def test_create_creates_index_on_primary_key(self, package):
         data = {
             "resource": {
                 "boo%k": "crime",
@@ -99,8 +95,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_creates_url_with_site_name(self):
-        package = factories.Dataset()
+    def test_create_creates_url_with_site_name(self, package):
         data = {"resource": {"boo%k": "crime", "package_id": package["id"]}}
         result = helpers.call_action("datastore_create", **data)
         resource_id = result["resource_id"]
@@ -110,8 +105,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_index_on_specific_fields(self):
-        package = factories.Dataset()
+    def test_create_index_on_specific_fields(self, package):
         data = {
             "resource": {
                 "boo%k": "crime",
@@ -131,9 +125,8 @@ class TestDatastoreCreateNewTests(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     def test_create_adds_index_on_full_text_search_when_creating_other_indexes(
-        self
+            self, package
     ):
-        package = factories.Dataset()
         data = {
             "resource": {
                 "boo%k": "crime",
@@ -153,9 +146,8 @@ class TestDatastoreCreateNewTests(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     def test_create_adds_index_on_full_text_search_when_not_creating_other_indexes(
-        self
+            self, package
     ):
-        package = factories.Dataset()
         data = {
             "resource": {
                 "boo%k": "crime",
@@ -173,8 +165,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_add_full_text_search_indexes_on_every_text_field(self):
-        package = factories.Dataset()
+    def test_create_add_full_text_search_indexes_on_every_text_field(self, package):
         data = {
             "resource": {
                 "book": "crime",
@@ -198,8 +189,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_doesnt_add_more_indexes_when_updating_data(self):
-        resource = factories.Resource()
+    def test_create_doesnt_add_more_indexes_when_updating_data(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -218,8 +208,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_duplicate_fields(self):
-        package = factories.Dataset()
+    def test_create_duplicate_fields(self, package):
         data = {
             "resource": {
                 "book": "crime",
@@ -236,8 +225,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_sets_datastore_active_on_resource_on_create(self):
-        resource = factories.Resource()
+    def test_sets_datastore_active_on_resource_on_create(self, resource):
 
         assert not (resource["datastore_active"])
 
@@ -255,8 +243,8 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_sets_datastore_active_on_resource_on_delete(self):
-        resource = factories.Resource(datastore_active=True)
+    def test_sets_datastore_active_on_resource_on_delete(self, resource_factory):
+        resource = resource_factory(datastore_active=True)
 
         assert resource["datastore_active"]
 
@@ -278,8 +266,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_exceeds_column_name_limit(self):
-        package = factories.Dataset()
+    def test_create_exceeds_column_name_limit(self, package):
         data = {
             "resource": {"package_id": package["id"]},
             "fields": [
@@ -295,8 +282,7 @@ class TestDatastoreCreateNewTests(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_calculate_record_count_is_false(self):
-        resource = factories.Resource()
+    def test_calculate_record_count_is_false(self, resource):
         data = {
             "resource_id": resource["id"],
             "fields": [
@@ -316,9 +302,8 @@ class TestDatastoreCreateNewTests(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     @pytest.mark.flaky(reruns=2)  # because analyze is sometimes delayed
-    def test_calculate_record_count(self):
+    def test_calculate_record_count(self, resource):
         # how datapusher loads data (send_resource_to_datastore)
-        resource = factories.Resource()
         data = {
             "resource_id": resource["id"],
             "fields": [
@@ -1190,9 +1175,9 @@ class TestDatastoreCreate(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("with_plugins")
-    def test_datastore_create_with_invalid_data_value(self, app):
+    def test_datastore_create_with_invalid_data_value(self, app, resource_factory):
         """datastore_create() should return an error for invalid data."""
-        resource = factories.Resource(url_type="datastore")
+        resource = resource_factory(url_type="datastore")
         data_dict = {
             "resource_id": resource["id"],
             "fields": [{"id": "value", "type": "numeric"}],
@@ -1293,14 +1278,13 @@ class TestDatastoreFunctionCreate(object):
 class TestDatastoreCreateTriggers(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_with_missing_trigger(self, app):
-        ds = factories.Dataset()
+    def test_create_with_missing_trigger(self, app, package):
 
         with pytest.raises(ValidationError) as error:
             with app.flask_app.test_request_context():
                 helpers.call_action(
                     u"datastore_create",
-                    resource={u"package_id": ds["id"]},
+                    resource={u"package_id": package["id"]},
                     fields=[{u"id": u"spam", u"type": u"text"}],
                     records=[{u"spam": u"SPAM"}, {u"spam": u"EGGS"}],
                     triggers=[{u"function": u"no_such_trigger_function"}],
@@ -1313,8 +1297,7 @@ class TestDatastoreCreateTriggers(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_trigger_applies_to_records(self, app):
-        ds = factories.Dataset()
+    def test_create_trigger_applies_to_records(self, app, package):
 
         helpers.call_action(
             u"datastore_function_create",
@@ -1330,7 +1313,7 @@ class TestDatastoreCreateTriggers(object):
         with app.flask_app.test_request_context():
             res = helpers.call_action(
                 u"datastore_create",
-                resource={u"package_id": ds["id"]},
+                resource={u"package_id": package["id"]},
                 fields=[{u"id": u"spam", u"type": u"text"}],
                 records=[{u"spam": u"SPAM"}, {u"spam": u"EGGS"}],
                 triggers=[{u"function": u"spamify_trigger"}],
@@ -1346,8 +1329,7 @@ class TestDatastoreCreateTriggers(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_upsert_trigger_applies_to_records(self, app):
-        ds = factories.Dataset()
+    def test_upsert_trigger_applies_to_records(self, app, package):
 
         helpers.call_action(
             u"datastore_function_create",
@@ -1363,7 +1345,7 @@ class TestDatastoreCreateTriggers(object):
         with app.flask_app.test_request_context():
             res = helpers.call_action(
                 u"datastore_create",
-                resource={u"package_id": ds["id"]},
+                resource={u"package_id": package["id"]},
                 fields=[{u"id": u"spam", u"type": u"text"}],
                 triggers=[{u"function": u"more_spam_trigger"}],
             )
@@ -1384,8 +1366,7 @@ class TestDatastoreCreateTriggers(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_create_trigger_exception(self, app):
-        ds = factories.Dataset()
+    def test_create_trigger_exception(self, app, package):
 
         helpers.call_action(
             u"datastore_function_create",
@@ -1403,7 +1384,7 @@ class TestDatastoreCreateTriggers(object):
             with app.flask_app.test_request_context():
                 helpers.call_action(
                     u"datastore_create",
-                    resource={u"package_id": ds["id"]},
+                    resource={u"package_id": package["id"]},
                     fields=[{u"id": u"spam", u"type": u"text"}],
                     records=[{u"spam": u"spam"}, {u"spam": u"EGGS"}],
                     triggers=[{u"function": u"spamexception_trigger"}],
@@ -1412,8 +1393,7 @@ class TestDatastoreCreateTriggers(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_upsert_trigger_exception(self, app):
-        ds = factories.Dataset()
+    def test_upsert_trigger_exception(self, app, package):
 
         helpers.call_action(
             u"datastore_function_create",
@@ -1430,7 +1410,7 @@ class TestDatastoreCreateTriggers(object):
         with app.flask_app.test_request_context():
             res = helpers.call_action(
                 u"datastore_create",
-                resource={u"package_id": ds["id"]},
+                resource={u"package_id": package["id"]},
                 fields=[{u"id": u"spam", u"type": u"text"}],
                 triggers=[{u"function": u"spamonly_trigger"}],
             )

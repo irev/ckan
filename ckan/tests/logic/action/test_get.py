@@ -4727,10 +4727,9 @@ class TestUserPluginExtras(object):
 
 @pytest.mark.usefixtures("clean_db")
 class TestGroupPackageShow:
-    def test_group_package_show(self):
-        group = factories.Group()
-        factories.Dataset()
-        pkg = factories.Dataset(groups=[{"id": group["id"]}])
+    def test_group_package_show(self, package_factory, group):
+        package_factory()
+        pkg = package_factory(groups=[{"id": group["id"]}])
         group_packages = helpers.call_action(
             "group_package_show", id=group["id"]
         )
@@ -4751,16 +4750,15 @@ class TestGetSiteUser:
 
 @pytest.mark.usefixtures("clean_db", "clean_index")
 class TestPackageList:
-    def test_package_list(self, app):
-        pkg1 = factories.Dataset()
-        pkg2 = factories.Dataset()
+    def test_package_list(self, app, package_factory):
+        pkg1 = package_factory()
+        pkg2 = package_factory()
         packages = helpers.call_action("package_list")
         assert len(packages) == 2
         assert set(packages) == {pkg1["name"], pkg2["name"]}
 
-    def test_package_list_private(self):
-        org = factories.Organization()
-        pkg1 = factories.Dataset()
-        pkg2 = factories.Dataset(private=True, owner_org=org["id"])
+    def test_package_list_private(self, organization, package_factory):
+        pkg1 = package_factory()
+        pkg2 = package_factory(private=True, owner_org=organization["id"])
         packages = helpers.call_action("package_list")
         assert packages == [pkg1["name"]]

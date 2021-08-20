@@ -7,7 +7,6 @@ import ckan.logic as logic
 import ckan.authz as authz
 import ckan.plugins as plugins
 from ckan.plugins.core import find_system_plugins
-from ckan.tests import factories
 
 
 def _make_calls(*args):
@@ -153,9 +152,9 @@ def test_only_configured_plugins_loaded():
 
 @pytest.mark.ckan_config("ckan.plugins", "mapper_plugin")
 @pytest.mark.usefixtures("with_plugins", "clean_db")
-def test_mapper_plugin_fired_on_insert():
+def test_mapper_plugin_fired_on_insert(package_factory):
     plugin = plugins.get_plugin("mapper_plugin")
-    factories.Dataset(name="testpkg")
+    package_factory(name="testpkg")
     assert plugin.calls == [
         ("before_insert", "testpkg"),
         ("after_insert", "testpkg"),
@@ -164,12 +163,11 @@ def test_mapper_plugin_fired_on_insert():
 
 @pytest.mark.ckan_config("ckan.plugins", "mapper_plugin")
 @pytest.mark.usefixtures("with_plugins", "clean_db", "with_request_context")
-def test_mapper_plugin_fired_on_delete():
+def test_mapper_plugin_fired_on_delete(package_factory, user):
     plugin = plugins.get_plugin("mapper_plugin")
-    factories.Dataset(name="testpkg")
+    package_factory(name="testpkg")
     plugin.calls = []
     # remove this data
-    user = factories.User()
     context = {"user": user["name"]}
     logic.get_action("package_delete")(context, {"id": "testpkg"})
     # state=deleted doesn't trigger before_delete()

@@ -2,7 +2,6 @@
 
 import pytest
 
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 from ckan.plugins.toolkit import ValidationError, NotAuthorized
 from ckanext.datastore.tests.helpers import when_was_last_analyze
@@ -18,8 +17,8 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_upsert_requires_auth(self):
-        resource = factories.Resource(url_type=u"datastore")
+    def test_upsert_requires_auth(self, resource_factory):
+        resource = resource_factory(url_type=u"datastore")
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -46,8 +45,8 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_upsert_empty_fails(self):
-        resource = factories.Resource(url_type=u"datastore")
+    def test_upsert_empty_fails(self, resource_factory):
+        resource = resource_factory(url_type=u"datastore")
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -67,8 +66,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_basic_as_update(self):
-        resource = factories.Resource()
+    def test_basic_as_update(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -99,8 +97,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_basic_as_insert(self):
-        resource = factories.Resource()
+    def test_basic_as_insert(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -131,8 +128,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_upsert_only_one_field(self):
-        resource = factories.Resource()
+    def test_upsert_only_one_field(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -163,8 +159,8 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_field_types(self):
-        resource = factories.Resource(url_type="datastore")
+    def test_field_types(self, resource_factory):
+        resource = resource_factory(url_type="datastore")
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -223,8 +219,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_percent(self):
-        resource = factories.Resource()
+    def test_percent(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -256,8 +251,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_missing_key(self):
-        resource = factories.Resource()
+    def test_missing_key(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -283,8 +277,8 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_non_existing_field(self):
-        resource = factories.Resource(url_type="datastore")
+    def test_non_existing_field(self, resource_factory):
+        resource = resource_factory(url_type="datastore")
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -310,8 +304,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_upsert_works_with_empty_list_in_json_field(self):
-        resource = factories.Resource()
+    def test_upsert_works_with_empty_list_in_json_field(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -338,8 +331,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_delete_field_value(self):
-        resource = factories.Resource()
+    def test_delete_field_value(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -368,8 +360,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_upsert_doesnt_crash_with_json_field(self):
-        resource = factories.Resource()
+    def test_upsert_doesnt_crash_with_json_field(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -397,8 +388,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_upsert_doesnt_crash_with_json_field_with_string_value(self):
-        resource = factories.Resource()
+    def test_upsert_doesnt_crash_with_json_field_with_string_value(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -420,11 +410,10 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_dry_run(self):
-        ds = factories.Dataset()
+    def test_dry_run(self, package):
         table = helpers.call_action(
             u"datastore_create",
-            resource={u"package_id": ds["id"]},
+            resource={u"package_id": package["id"]},
             fields=[{u"id": u"spam", u"type": u"text"}],
             primary_key=u"spam",
         )
@@ -441,11 +430,10 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_dry_run_type_error(self):
-        ds = factories.Dataset()
+    def test_dry_run_type_error(self, package):
         table = helpers.call_action(
             u"datastore_create",
-            resource={u"package_id": ds["id"]},
+            resource={u"package_id": package["id"]},
             fields=[{u"id": u"spam", u"type": u"numeric"}],
             primary_key=u"spam",
         )
@@ -465,8 +453,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_dry_run_trigger_error(self):
-        ds = factories.Dataset()
+    def test_dry_run_trigger_error(self, package):
         helpers.call_action(
             u"datastore_function_create",
             name=u"spamexception_trigger",
@@ -481,7 +468,7 @@ class TestDatastoreUpsert(object):
         )
         table = helpers.call_action(
             u"datastore_create",
-            resource={u"package_id": ds["id"]},
+            resource={u"package_id": package["id"]},
             fields=[{u"id": u"spam", u"type": u"text"}],
             primary_key=u"spam",
             triggers=[{u"function": u"spamexception_trigger"}],
@@ -500,8 +487,7 @@ class TestDatastoreUpsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_calculate_record_count_is_false(self):
-        resource = factories.Resource()
+    def test_calculate_record_count_is_false(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -527,8 +513,7 @@ class TestDatastoreUpsert(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     @pytest.mark.flaky(reruns=2)  # because analyze is sometimes delayed
-    def test_calculate_record_count(self):
-        resource = factories.Resource()
+    def test_calculate_record_count(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -559,8 +544,7 @@ class TestDatastoreInsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_basic_insert(self):
-        resource = factories.Resource()
+    def test_basic_insert(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -598,8 +582,8 @@ class TestDatastoreInsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_non_existing_field(self):
-        resource = factories.Resource(url_type="datastore")
+    def test_non_existing_field(self, resource_factory):
+        resource = resource_factory(url_type="datastore")
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -625,8 +609,7 @@ class TestDatastoreInsert(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_key_already_exists(self):
-        resource = factories.Resource()
+    def test_key_already_exists(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -665,8 +648,8 @@ class TestDatastoreUpdate(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_basic(self):
-        resource = factories.Resource(url_type="datastore")
+    def test_basic(self, resource_factory):
+        resource = resource_factory(url_type="datastore")
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -694,8 +677,8 @@ class TestDatastoreUpdate(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_field_types(self):
-        resource = factories.Resource(url_type="datastore")
+    def test_field_types(self, resource_factory):
+        resource = resource_factory(url_type="datastore")
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -751,8 +734,8 @@ class TestDatastoreUpdate(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_update_unspecified_key(self):
-        resource = factories.Resource(url_type="datastore")
+    def test_update_unspecified_key(self, resource_factory):
+        resource = resource_factory(url_type="datastore")
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -778,8 +761,8 @@ class TestDatastoreUpdate(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_update_unknown_key(self):
-        resource = factories.Resource(url_type="datastore")
+    def test_update_unknown_key(self, resource_factory):
+        resource = resource_factory(url_type="datastore")
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -805,8 +788,8 @@ class TestDatastoreUpdate(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_update_non_existing_field(self):
-        resource = factories.Resource(url_type="datastore")
+    def test_update_non_existing_field(self, resource_factory):
+        resource = resource_factory(url_type="datastore")
         data = {
             "resource_id": resource["id"],
             "force": True,

@@ -1,16 +1,14 @@
 # encoding: utf-8
 
 import pytest
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 
 
 @pytest.mark.ckan_config(u"ckan.plugins", u"datastore datapusher")
 @pytest.mark.usefixtures(u"clean_datastore", u"with_plugins", u"with_request_context")
-def test_read(app):
-    user = factories.User()
-    dataset = factories.Dataset(creator_user_id=user["id"])
-    resource = factories.Resource(
+def test_read(app, user, package_factory, resource_factory):
+    dataset = package_factory(creator_user_id=user["id"])
+    resource = resource_factory(
         package_id=dataset["id"], creator_user_id=user["id"]
     )
     data = {

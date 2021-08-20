@@ -6,15 +6,14 @@ import bs4
 from ckan.lib.helpers import url_for
 
 import ckan.tests.helpers as helpers
+import ckan.tests.factories as factories
 import ckan.model as model
-from ckan.tests import factories
 
 custom_group_type = u"grup"
 group_type = u"group"
 
 
-def _get_group_new_page(app, group_type):
-    user = factories.User()
+def _get_group_new_page(app, group_type, user):
     env = {"REMOTE_USER": six.ensure_str(user["name"])}
     response = app.get(url_for("%s.new" % group_type), extra_environ=env,)
     return env, response
@@ -23,18 +22,16 @@ def _get_group_new_page(app, group_type):
 @pytest.mark.ckan_config("ckan.plugins", "example_igroupform")
 @pytest.mark.usefixtures("clean_db", "with_plugins", "with_request_context")
 class TestGroupController(object):
-    def test_about(self, app):
-        user = factories.User()
-        group = factories.Group(user=user, type=custom_group_type)
+    def test_about(self, app, user, group_factory):
+        group = group_factory(user=user, type=custom_group_type)
         group_name = group["name"]
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         url = url_for("%s.about" % custom_group_type, id=group_name)
         response = app.get(url=url, extra_environ=env)
         assert helpers.body_contains(response, group_name)
 
-    def test_bulk_process(self, app):
-        user = factories.User()
-        group = factories.Group(user=user, type=custom_group_type)
+    def test_bulk_process(self, app, user, group_factory):
+        group = group_factory(user=user, type=custom_group_type)
         group_name = group["name"]
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         url = url_for("%s.bulk_process" % custom_group_type, id=group_name)
@@ -45,9 +42,8 @@ class TestGroupController(object):
         else:
             raise Exception("Response should have raised an exception")
 
-    def test_delete(self, app):
-        user = factories.User()
-        group = factories.Group(user=user, type=custom_group_type)
+    def test_delete(self, app, user, group_factory):
+        group = group_factory(user=user, type=custom_group_type)
         group_name = group["name"]
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         url = url_for("%s.delete" % custom_group_type, id=group_name)
@@ -78,26 +74,23 @@ class TestGroupController(object):
 @pytest.mark.ckan_config("ckan.plugins", "example_igroupform_organization")
 @pytest.mark.usefixtures("clean_db", "clean_index", "with_plugins", "with_request_context")
 class TestOrganizationController(object):
-    def test_about(self, app):
-        user = factories.User()
-        group = factories.Organization(user=user, type=custom_group_type)
+    def test_about(self, app, user, organization_factory):
+        group = organization_factory(user=user, type=custom_group_type)
         group_name = group["name"]
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         url = url_for("%s.about" % custom_group_type, id=group_name)
         response = app.get(url=url, extra_environ=env)
         assert helpers.body_contains(response, group_name)
 
-    def test_bulk_process(self, app):
-        user = factories.User()
-        group = factories.Organization(user=user, type=custom_group_type)
+    def test_bulk_process(self, app, user, organization_factory):
+        group = organization_factory(user=user, type=custom_group_type)
         group_name = group["name"]
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         url = url_for("%s.bulk_process" % custom_group_type, id=group_name)
         response = app.get(url=url, extra_environ=env)
 
-    def test_delete(self, app):
-        user = factories.User()
-        group = factories.Organization(user=user, type=custom_group_type)
+    def test_delete(self, app, user, organization_factory):
+        group = organization_factory(user=user, type=custom_group_type)
         group_name = group["name"]
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         url = url_for("%s.delete" % custom_group_type, id=group_name)
@@ -124,12 +117,11 @@ class TestOrganizationController(object):
             'data-module-placeholder="&lt;{}&gt;"'.format(custom_group_type),
         )
 
-    def test_pagination(self, app):
-        user = factories.User()
-        group = factories.Organization(user=user, type=custom_group_type)
+    def test_pagination(self, app, user, organization_factory, package_factory):
+        group = organization_factory(user=user, type=custom_group_type)
         group_name = group["name"]
         for i in range(0, 21):
-            factories.Dataset(owner_org=group['id'], user=user)
+            package_factory(owner_org=group['id'], user=user)
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         url = url_for("%s.read" % custom_group_type, id=group_name)
         response = app.get(url=url, extra_environ=env)
@@ -146,9 +138,8 @@ class TestOrganizationController(object):
 @pytest.mark.ckan_config("ckan.plugins", "example_igroupform")
 @pytest.mark.usefixtures("clean_db", "with_plugins", "with_request_context")
 class TestGroupControllerNew(object):
-    def test_save(self, app):
+    def test_save(self, app, user):
         url = url_for("%s.new" % custom_group_type)
-        user = factories.User()
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         app.post(
             url, data={"name": "saved", "title": ""}, environ_overrides=env
@@ -172,9 +163,8 @@ class TestGroupControllerNew(object):
 )
 @pytest.mark.usefixtures("clean_db", "with_plugins", "with_request_context")
 class TestGroupControllerNew_DefaultGroupType(object):
-    def test_save(self, app):
+    def test_save(self, app, user):
         url = url_for("%s.new" % group_type)
-        user = factories.User()
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         app.post(
             url, data={"name": "saved", "title": ""}, environ_overrides=env
@@ -194,9 +184,9 @@ class TestGroupControllerNew_DefaultGroupType(object):
 
 
 def _get_group_edit_page(app, group_type, group_name=None):
-    user = factories.User()
+    user = factories.UserFactory()
     if group_name is None:
-        group = factories.Group(user=user, type=group_type)
+        group = factories.GroupFactory(user=user, type=group_type)
         group_name = group["name"]
     env = {"REMOTE_USER": six.ensure_str(user["name"])}
     url = url_for("%s.edit" % group_type, id=group_name)
@@ -207,8 +197,7 @@ def _get_group_edit_page(app, group_type, group_name=None):
 @pytest.mark.ckan_config("ckan.plugins", "example_igroupform")
 @pytest.mark.usefixtures("clean_db", "with_plugins", "with_request_context")
 class TestGroupControllerEdit(object):
-    def test_group_doesnt_exist(self, app):
-        user = factories.User()
+    def test_group_doesnt_exist(self, app, user):
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         url = url_for("%s.edit" % custom_group_type, id="doesnt_exist")
         app.get(url=url, extra_environ=env, status=404)
@@ -227,8 +216,7 @@ class TestGroupControllerEdit(object):
 )
 @pytest.mark.usefixtures("clean_db", "with_plugins", "with_request_context")
 class TestGroupControllerEdit_DefaultGroupType(object):
-    def test_group_doesnt_exist(self, app):
-        user = factories.User()
+    def test_group_doesnt_exist(self, app, user):
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
         url = url_for("%s.edit" % group_type, id="doesnt_exist")
         res = app.get(url=url, extra_environ=env)
@@ -277,8 +265,7 @@ class TestCustomGroupBlueprint(object):
         assert links[-1].text == "Grups"
         assert page.head.title.text.startswith("Grups")
 
-    def test_group_creation_labels(self, app):
-        user = factories.User()
+    def test_group_creation_labels(self, app, user):
         env = {"REMOTE_USER": user["name"]}
 
         resp = app.get("/grup", status=200, extra_environ=env)

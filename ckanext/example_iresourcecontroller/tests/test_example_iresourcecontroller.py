@@ -6,7 +6,6 @@
 import pytest
 
 import ckan.plugins
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 
 
@@ -17,9 +16,8 @@ class TestExampleIResourceController(object):
 
     """
 
-    def test_resource_controller_plugin_create(self):
-        user = factories.Sysadmin()
-        package = factories.Dataset(user=user)
+    def test_resource_controller_plugin_create(self, sysadmin, package_factory):
+        package = package_factory(user=sysadmin)
 
         plugin = ckan.plugins.get_plugin("example_iresourcecontroller")
 
@@ -28,7 +26,7 @@ class TestExampleIResourceController(object):
             package_id=package["id"],
             name="test-resource",
             url="http://resource.create/",
-            apikey=user["apikey"],
+            apikey=sysadmin["apikey"],
         )
 
         assert plugin.counter["before_create"] == 1, plugin.counter
@@ -38,16 +36,15 @@ class TestExampleIResourceController(object):
         assert plugin.counter["before_delete"] == 0, plugin.counter
         assert plugin.counter["after_delete"] == 0, plugin.counter
 
-    def test_resource_controller_plugin_update(self):
-        user = factories.Sysadmin()
-        resource = factories.Resource(user=user)
+    def test_resource_controller_plugin_update(self, sysadmin, resource_factory):
+        resource = resource_factory(user=sysadmin)
         plugin = ckan.plugins.get_plugin("example_iresourcecontroller")
 
         res = helpers.call_action(
             "resource_update",
             id=resource["id"],
             url="http://resource.updated/",
-            apikey=user["apikey"],
+            apikey=sysadmin["apikey"],
         )
 
         assert plugin.counter["before_create"] == 1, plugin.counter
@@ -57,14 +54,13 @@ class TestExampleIResourceController(object):
         assert plugin.counter["before_delete"] == 0, plugin.counter
         assert plugin.counter["after_delete"] == 0, plugin.counter
 
-    def test_resource_controller_plugin_delete(self):
-        user = factories.Sysadmin()
-        resource = factories.Resource(user=user)
+    def test_resource_controller_plugin_delete(self, sysadmin, resource_factory):
+        resource = resource_factory(user=sysadmin)
 
         plugin = ckan.plugins.get_plugin("example_iresourcecontroller")
 
         res = helpers.call_action(
-            "resource_delete", id=resource["id"], apikey=user["apikey"]
+            "resource_delete", id=resource["id"], apikey=sysadmin["apikey"]
         )
 
         assert plugin.counter["before_create"] == 1, plugin.counter
@@ -74,15 +70,14 @@ class TestExampleIResourceController(object):
         assert plugin.counter["before_delete"] == 1, plugin.counter
         assert plugin.counter["after_delete"] == 1, plugin.counter
 
-    def test_resource_controller_plugin_show(self):
+    def test_resource_controller_plugin_show(self, sysadmin, package_factory, resource_factory):
         """
         Before show gets called by the other methods but we test it
         separately here and make sure that it doesn't call the other
         methods.
         """
-        user = factories.Sysadmin()
-        package = factories.Dataset(user=user)
-        resource = factories.Resource(user=user, package_id=package["id"])
+        package = package_factory(user=sysadmin)
+        resource = resource_factory(user=sysadmin, package_id=package["id"])
 
         plugin = ckan.plugins.get_plugin("example_iresourcecontroller")
 

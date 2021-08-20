@@ -3,7 +3,6 @@ import pytest
 
 import ckan.lib.create_test_data as ctd
 import ckan.plugins as p
-import ckan.tests.factories as factories
 from ckan.logic import check_access, NotAuthorized
 from ckan.logic.auth.get import user_list as core_user_list
 
@@ -65,8 +64,7 @@ class TestChainedAuth(object):
         # check that exception returned has the message from our auth function
         assert raise_context.value.args == (auth_message, )
 
-    def test_chain_core_auth_functions(self):
-        user = factories.User()
+    def test_chain_core_auth_functions(self, user):
         context = {u"user": user[u"name"]}
         with pytest.raises(AuthTestException) as raise_context:
             check_access(u"user_list", context, {})

@@ -4,7 +4,7 @@ import datetime
 
 import pytest
 
-from ckan.tests import helpers, factories
+from ckan.tests import helpers
 
 
 @pytest.mark.ckan_config("ckan.views.default_views", "recline_grid_view")
@@ -12,11 +12,8 @@ from ckan.tests import helpers, factories
     "ckan.plugins", "datapusher datastore recline_grid_view"
 )
 @pytest.mark.usefixtures("clean_db", "with_plugins")
-def test_datapusher_creates_default_views_on_complete():
-
-    dataset = factories.Dataset()
-
-    resource = factories.Resource(package_id=dataset["id"])
+def test_datapusher_creates_default_views_on_complete(package, resource_factory):
+    resource = resource_factory(package_id=package["id"])
 
     # Push data directly to the DataStore for the resource to be marked as
     # `datastore_active=True`, so the grid view can be created
@@ -60,11 +57,8 @@ def test_datapusher_creates_default_views_on_complete():
     "ckan.plugins", "datapusher datastore recline_grid_view"
 )
 @pytest.mark.usefixtures("clean_db", "with_plugins")
-def test_datapusher_does_not_create_default_views_on_pending():
-
-    dataset = factories.Dataset()
-
-    resource = factories.Resource(package_id=dataset["id"])
+def test_datapusher_does_not_create_default_views_on_pending(package, resource_factory):
+    resource = resource_factory(package_id=package["id"])
 
     # Push data directly to the DataStore for the resource to be marked as
     # `datastore_active=True`, so the grid view can be created

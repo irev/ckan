@@ -3,7 +3,6 @@
 import pytest
 
 import ckan.plugins as p
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 from ckan.logic.action.get import package_list as core_package_list
 
@@ -73,9 +72,8 @@ class TestChainedAction(object):
         assert new_records_ages == [20, 40]
         assert response["deleted_count"] == 1
 
-    def _create_datastore_resource(self, records):
-        dataset = factories.Dataset()
-        resource = factories.Resource(package=dataset)
+    def _create_datastore_resource(self, records, package, resource_factory):
+        resource = resource_factory(package=package)
 
         data = {
             u"resource_id": resource[u"id"],

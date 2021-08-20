@@ -54,7 +54,7 @@ Some notes on how these tests work:
 
 * CKAN core provides:
 
-  * :mod:`ckan.tests.factories` for creating test data
+  * ``*_factory`` fixtures for creating test data
 
   * :mod:`ckan.tests.helpers` a collection of helper functions for use in tests
 

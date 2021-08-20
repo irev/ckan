@@ -8,7 +8,6 @@ import ckan.lib.create_test_data as ctd
 import ckan.logic as logic
 import ckan.model as model
 import ckan.plugins as p
-import ckan.tests.factories as factories
 import ckan.tests.helpers as helpers
 import ckanext.datastore.backend.postgres as db
 from ckanext.datastore.tests.helpers import extract
@@ -18,8 +17,7 @@ from ckanext.datastore.tests.helpers import extract
 class TestDatastoreSearch(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_fts_on_field_calculates_ranks_only_on_that_specific_field(self):
-        resource = factories.Resource()
+    def test_fts_on_field_calculates_ranks_only_on_that_specific_field(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -41,8 +39,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_fts_works_on_non_textual_fields(self):
-        resource = factories.Resource()
+    def test_fts_works_on_non_textual_fields(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -65,8 +62,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_all_params_work_with_fields_with_whitespaces(self):
-        resource = factories.Resource()
+    def test_all_params_work_with_fields_with_whitespaces(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -86,8 +82,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_search_total(self):
-        resource = factories.Resource()
+    def test_search_total(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -101,8 +96,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_search_without_total(self):
-        resource = factories.Resource()
+    def test_search_without_total(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -116,8 +110,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_estimate_total(self):
-        resource = factories.Resource()
+    def test_estimate_total(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -140,8 +133,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_estimate_total_with_filters(self):
-        resource = factories.Resource()
+    def test_estimate_total_with_filters(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -166,8 +158,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_estimate_total_with_distinct(self):
-        resource = factories.Resource()
+    def test_estimate_total_with_distinct(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -193,10 +184,9 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_estimate_total_where_analyze_is_not_already_done(self):
+    def test_estimate_total_where_analyze_is_not_already_done(self, resource):
         # ANALYSE is done by latest datapusher/xloader, but need to cope in
         # if tables created in other ways which may not have had an ANALYSE
-        resource = factories.Resource()
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -213,8 +203,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_estimate_total_with_zero_threshold(self):
-        resource = factories.Resource()
+    def test_estimate_total_with_zero_threshold(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -238,8 +227,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_estimate_total_off(self):
-        resource = factories.Resource()
+    def test_estimate_total_off(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -262,8 +250,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_estimate_total_default_off(self):
-        resource = factories.Resource()
+    def test_estimate_total_default_off(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -286,8 +273,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_search_limit(self):
-        resource = factories.Resource()
+    def test_search_limit(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -302,8 +288,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_search_limit_invalid(self):
-        resource = factories.Resource()
+    def test_search_limit_invalid(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -316,8 +301,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_search_limit_invalid_negative(self):
-        resource = factories.Resource()
+    def test_search_limit_invalid_negative(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -333,8 +317,7 @@ class TestDatastoreSearch(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     @pytest.mark.ckan_config("ckan.datastore.search.rows_default", "1")
-    def test_search_limit_config_default(self):
-        resource = factories.Resource()
+    def test_search_limit_config_default(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -353,8 +336,7 @@ class TestDatastoreSearch(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     @pytest.mark.ckan_config("ckan.datastore.search.rows_default", "1")
-    def test_search_limit_config(self):
-        resource = factories.Resource()
+    def test_search_limit_config(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -380,8 +362,7 @@ class TestDatastoreSearch(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     @pytest.mark.ckan_config("ckan.datastore.search.rows_max", "1")
-    def test_search_limit_config_max(self):
-        resource = factories.Resource()
+    def test_search_limit_config_max(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -401,8 +382,7 @@ class TestDatastoreSearch(object):
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     @pytest.mark.ckan_config("ckan.datastore.search.rows_default", "1")
     @pytest.mark.ckan_config("ckan.datastore.search.rows_max", "2")
-    def test_search_limit_config_combination(self):
-        resource = factories.Resource()
+    def test_search_limit_config_combination(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -431,8 +411,7 @@ class TestDatastoreSearch(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_search_filter_with_percent_in_column_name(self):
-        resource = factories.Resource()
+    def test_search_filter_with_percent_in_column_name(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -1540,24 +1519,24 @@ class TestDatastoreSQLFunctional(object):
     @pytest.mark.usefixtures(
         "clean_datastore", "with_plugins", "with_request_context"
     )
-    def test_search_sql_enforces_private(self):
-        user1 = factories.User()
-        user2 = factories.User()
-        user3 = factories.User()
+    def test_search_sql_enforces_private(self, user_factory, organization_factory, package_factory):
+        user1 = user_factory()
+        user2 = user_factory()
+        user3 = user_factory()
         ctx1 = {u"user": user1["name"], u"ignore_auth": False}
         ctx2 = {u"user": user2["name"], u"ignore_auth": False}
         ctx3 = {u"user": user3["name"], u"ignore_auth": False}
 
-        org1 = factories.Organization(
+        org1 = organization_factory(
             user=user1,
             users=[{u"name": user3["name"], u"capacity": u"member"}],
         )
-        org2 = factories.Organization(
+        org2 = organization_factory(
             user=user2,
             users=[{u"name": user3["name"], u"capacity": u"member"}],
         )
-        ds1 = factories.Dataset(owner_org=org1["id"], private=True)
-        ds2 = factories.Dataset(owner_org=org2["id"], private=True)
+        ds1 = package_factory(owner_org=org1["id"], private=True)
+        ds2 = package_factory(owner_org=org2["id"], private=True)
         r1 = helpers.call_action(
             u"datastore_create",
             resource={u"package_id": ds1["id"]},
@@ -1589,8 +1568,7 @@ class TestDatastoreSQLFunctional(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_validates_sql_has_a_single_statement(self):
-        resource = factories.Resource()
+    def test_validates_sql_has_a_single_statement(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -1607,8 +1585,7 @@ class TestDatastoreSQLFunctional(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_works_with_semicolons_inside_strings(self):
-        resource = factories.Resource()
+    def test_works_with_semicolons_inside_strings(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -1622,8 +1599,7 @@ class TestDatastoreSQLFunctional(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_works_with_allowed_functions(self):
-        resource = factories.Resource()
+    def test_works_with_allowed_functions(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -1638,8 +1614,7 @@ class TestDatastoreSQLFunctional(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_not_authorized_with_disallowed_functions(self):
-        resource = factories.Resource()
+    def test_not_authorized_with_disallowed_functions(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -1655,8 +1630,7 @@ class TestDatastoreSQLFunctional(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_allowed_functions_are_case_insensitive(self):
-        resource = factories.Resource()
+    def test_allowed_functions_are_case_insensitive(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -1671,8 +1645,7 @@ class TestDatastoreSQLFunctional(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_quoted_allowed_functions_are_case_sensitive(self):
-        resource = factories.Resource()
+    def test_quoted_allowed_functions_are_case_sensitive(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -1702,8 +1675,7 @@ class TestDatastoreSQLFunctional(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_select_basic(self):
-        resource = factories.Resource()
+    def test_select_basic(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -1762,8 +1734,7 @@ class TestDatastoreSQLFunctional(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_alias_search(self):
-        resource = factories.Resource()
+    def test_alias_search(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -1794,8 +1765,7 @@ class TestDatastoreSQLFunctional(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     @pytest.mark.ckan_config("ckan.datastore.search.rows_max", "2")
-    def test_search_limit(self):
-        resource = factories.Resource()
+    def test_search_limit(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -1818,11 +1788,10 @@ class TestDatastoreSQLFunctional(object):
 class TestDatastoreSearchRecordsFormat(object):
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_sort_results_objects(self):
-        ds = factories.Dataset()
+    def test_sort_results_objects(self, package):
         r = helpers.call_action(
             u"datastore_create",
-            resource={u"package_id": ds["id"]},
+            resource={u"package_id": package["id"]},
             fields=[
                 {u"id": u"num", u"type": u"numeric"},
                 {u"id": u"dt", u"type": u"timestamp"},
@@ -1903,11 +1872,10 @@ class TestDatastoreSearchRecordsFormat(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_sort_results_lists(self):
-        ds = factories.Dataset()
+    def test_sort_results_lists(self, package):
         r = helpers.call_action(
             u"datastore_create",
-            resource={u"package_id": ds["id"]},
+            resource={u"package_id": package["id"]},
             fields=[
                 {u"id": u"num", u"type": u"numeric"},
                 {u"id": u"dt", u"type": u"timestamp"},
@@ -1952,11 +1920,10 @@ class TestDatastoreSearchRecordsFormat(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_sort_results_csv(self):
-        ds = factories.Dataset()
+    def test_sort_results_csv(self, package):
         r = helpers.call_action(
             u"datastore_create",
-            resource={u"package_id": ds["id"]},
+            resource={u"package_id": package["id"]},
             fields=[
                 {u"id": u"num", u"type": u"numeric"},
                 {u"id": u"dt", u"type": u"timestamp"},
@@ -2004,11 +1971,10 @@ class TestDatastoreSearchRecordsFormat(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_fields_results_csv(self):
-        ds = factories.Dataset()
+    def test_fields_results_csv(self, package):
         r = helpers.call_action(
             u"datastore_create",
-            resource={u"package_id": ds["id"]},
+            resource={u"package_id": package["id"]},
             fields=[
                 {u"id": u"num", u"type": u"numeric"},
                 {u"id": u"dt", u"type": u"timestamp"},
@@ -2058,8 +2024,7 @@ class TestDatastoreSearchRecordsFormat(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_fts_on_field_calculates_ranks_specific_field_and_all_fields(self):
-        resource = factories.Resource()
+    def test_fts_on_field_calculates_ranks_specific_field_and_all_fields(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -2084,8 +2049,7 @@ class TestDatastoreSearchRecordsFormat(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_fts_on_field_calculates_ranks_when_q_string_and_fulltext_is_given(self):
-        resource = factories.Resource()
+    def test_fts_on_field_calculates_ranks_when_q_string_and_fulltext_is_given(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,
@@ -2107,8 +2071,7 @@ class TestDatastoreSearchRecordsFormat(object):
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
     @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-    def test_fts_on_field_calculates_ranks_when_full_text_is_given(self):
-        resource = factories.Resource()
+    def test_fts_on_field_calculates_ranks_when_full_text_is_given(self, resource):
         data = {
             "resource_id": resource["id"],
             "force": True,

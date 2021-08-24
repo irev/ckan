@@ -5,8 +5,6 @@ import six
 from ckan.lib.helpers import url_for
 from bs4 import BeautifulSoup
 
-from ckan.tests import factories
-
 
 @pytest.mark.usefixtures("with_request_context")
 class TestHome(object):
@@ -47,8 +45,8 @@ class TestHome(object):
         assert " and add your email address." in response.body
 
     @pytest.mark.usefixtures("clean_db")
-    def test_email_address_no_nag(self, app):
-        user = factories.User(email="filled_in@nicely.com")
+    def test_email_address_no_nag(self, app, user_factory):
+        user = user_factory(email="filled_in@nicely.com")
         env = {"REMOTE_USER": six.ensure_str(user["name"])}
 
         response = app.get(url=url_for("home.index"), extra_environ=env)

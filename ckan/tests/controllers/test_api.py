@@ -11,7 +11,6 @@ import six
 
 from ckan.lib.helpers import url_for
 import ckan.tests.helpers as helpers
-from ckan.tests import factories
 from ckan.lib import uploader as ckan_uploader
 
 
@@ -62,13 +61,12 @@ def test_sideeffect_action_is_not_get_able(app):
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestApiController(object):
     def test_resource_create_upload_file(
-        self, app, monkeypatch, tmpdir, ckan_config
+            self, app, monkeypatch, tmpdir, ckan_config, user, package_factory
     ):
         monkeypatch.setitem(ckan_config, u"ckan.storage_path", str(tmpdir))
         monkeypatch.setattr(ckan_uploader, u"_storage_path", str(tmpdir))
 
-        user = factories.User()
-        pkg = factories.Dataset(creator_user_id=user["id"])
+        pkg = package_factory(creator_user_id=user["id"])
 
         url = url_for(
             "api.action",
@@ -106,8 +104,8 @@ class TestApiController(object):
         assert helpers.body_contains(response, "Delta symbol: \\u0394")
 
     @pytest.mark.usefixtures("clean_index")
-    def test_dataset_autocomplete_name(self, app):
-        dataset = factories.Dataset(name="rivers")
+    def test_dataset_autocomplete_name(self, app, package_factory):
+        dataset = package_factory(name="rivers")
         url = url_for("api.dataset_autocomplete", ver=2)
         assert url == "/api/2/util/dataset/autocomplete"
 
@@ -134,8 +132,8 @@ class TestApiController(object):
         )
 
     @pytest.mark.usefixtures("clean_index")
-    def test_dataset_autocomplete_title(self, app):
-        dataset = factories.Dataset(name="test_ri", title="Rivers")
+    def test_dataset_autocomplete_title(self, app, package_factory):
+        dataset = package_factory(name="test_ri", title="Rivers")
         url = url_for("api.dataset_autocomplete", ver=2)
         assert url == "/api/2/util/dataset/autocomplete"
 
@@ -161,8 +159,8 @@ class TestApiController(object):
             == "application/json;charset=utf-8"
         )
 
-    def test_tag_autocomplete(self, app):
-        factories.Dataset(tags=[{"name": "rivers ア"}])
+    def test_tag_autocomplete(self, app, package_factory):
+        package_factory(tags=[{"name": "rivers ア"}])
         url = url_for("api.tag_autocomplete", ver=2)
 
         assert url == "/api/2/util/tag/autocomplete"
@@ -179,8 +177,8 @@ class TestApiController(object):
             == "application/json;charset=utf-8"
         )
 
-    def test_group_autocomplete_by_name(self, app):
-        org = factories.Group(name="rivers", title="Bridges")
+    def test_group_autocomplete_by_name(self, app, group_factory):
+        org = group_factory(name="rivers", title="Bridges")
         url = url_for("api.group_autocomplete", ver=2)
         assert url == "/api/2/util/group/autocomplete"
 
@@ -195,8 +193,8 @@ class TestApiController(object):
             == "application/json;charset=utf-8"
         )
 
-    def test_group_autocomplete_by_title(self, app):
-        org = factories.Group(name="frogs", title="Bugs")
+    def test_group_autocomplete_by_title(self, app, group_factory):
+        org = group_factory(name="frogs", title="Bugs")
         url = url_for("api.group_autocomplete", ver=2)
 
         response = app.get(url=url, query_string={"q": u"bug"}, status=200)
@@ -205,8 +203,8 @@ class TestApiController(object):
         assert len(results) == 1
         assert results[0]["name"] == "frogs"
 
-    def test_organization_autocomplete_by_name(self, app):
-        org = factories.Organization(name="simple-dummy-org")
+    def test_organization_autocomplete_by_name(self, app, organization_factory):
+        org = organization_factory(name="simple-dummy-org")
         url = url_for("api.organization_autocomplete", ver=2)
         assert url == "/api/2/util/organization/autocomplete"
 
@@ -221,8 +219,8 @@ class TestApiController(object):
             == "application/json;charset=utf-8"
         )
 
-    def test_organization_autocomplete_by_title(self, app):
-        org = factories.Organization(title="Simple dummy org")
+    def test_organization_autocomplete_by_title(self, app, organization_factory):
+        org = organization_factory(title="Simple dummy org")
         url = url_for("api.organization_autocomplete", ver=2)
 
         response = app.get(
@@ -233,8 +231,7 @@ class TestApiController(object):
         assert len(results) == 1
         assert results[0]["title"] == "Simple dummy org"
 
-    def test_config_option_list_access_sysadmin(self, app):
-        user = factories.Sysadmin()
+    def test_config_option_list_access_sysadmin(self, app, sysadmin):
         url = url_for(
             "api.action",
             logic_function="config_option_list",
@@ -244,12 +241,11 @@ class TestApiController(object):
         app.get(
             url=url,
             query_string={},
-            environ_overrides={"REMOTE_USER": six.ensure_str(user["name"])},
+            environ_overrides={"REMOTE_USER": six.ensure_str(sysadmin["name"])},
             status=200,
         )
 
-    def test_config_option_list_access_sysadmin_jsonp(self, app):
-        user = factories.Sysadmin()
+    def test_config_option_list_access_sysadmin_jsonp(self, app, sysadmin):
         url = url_for(
             "api.action",
             logic_function="config_option_list",
@@ -259,14 +255,14 @@ class TestApiController(object):
         app.get(
             url=url,
             query_string={"callback": "myfn"},
-            environ_overrides={"REMOTE_USER": six.ensure_str(user["name"])},
+            environ_overrides={"REMOTE_USER": six.ensure_str(sysadmin["name"])},
             status=403,
         )
 
-    def test_jsonp_works_on_get_requests(self, app):
+    def test_jsonp_works_on_get_requests(self, app, package_factory):
 
-        dataset1 = factories.Dataset()
-        dataset2 = factories.Dataset()
+        dataset1 = package_factory()
+        dataset2 = package_factory()
 
         url = url_for(
             "api.action",
@@ -295,10 +291,10 @@ class TestApiController(object):
         res = app.get(url=url, query_string={"callback": "my_callback"})
         assert "application/javascript" in res.headers.get("Content-Type")
 
-    def test_jsonp_does_not_work_on_post_requests(self, app):
+    def test_jsonp_does_not_work_on_post_requests(self, app, package_factory):
 
-        dataset1 = factories.Dataset()
-        dataset2 = factories.Dataset()
+        dataset1 = package_factory()
+        dataset2 = package_factory()
 
         url = url_for(
             "api.action",
@@ -327,9 +323,9 @@ class TestApiController(object):
             ("xls", set()),
         ],
     )
-    def test_format_autocomplete(self, incomplete, expected, app):
-        factories.Resource(format="CSV")
-        factories.Resource(format="JSON")
+    def test_format_autocomplete(self, incomplete, expected, app, resource_factory):
+        resource_factory(format="CSV")
+        resource_factory(format="JSON")
 
         resp = app.get(
             url_for("api.format_autocomplete", ver=2, incomplete=incomplete)

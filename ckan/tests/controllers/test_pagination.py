@@ -2,16 +2,14 @@
 
 from bs4 import BeautifulSoup
 import pytest
-import ckan.tests.factories as factories
 from ckan.lib.helpers import url_for
 
 
 @pytest.mark.usefixtures("clean_db", "clean_index")
-def test_package_search(app):
-    group = factories.Group()
+def test_package_search(app, group, package_factory):
     all_numbers = [
         dataset["name"].rsplit("_", 1)[-1]
-        for dataset in factories.Dataset.create_batch(51, groups=[{"name": group["name"]}])
+        for dataset in package_factory.create_batch(51, groups=[{"name": group["name"]}])
     ]
     resp = app.get(url_for("dataset.search", q=f"groups:{group['name']}"))
     page = BeautifulSoup(resp.data)
@@ -37,11 +35,10 @@ def test_package_search(app):
 
 
 @pytest.mark.usefixtures("clean_db", "clean_index")
-def test_group_datasets_read(app):
-    group = factories.Group()
+def test_group_datasets_read(app, group, package_factory):
     all_numbers = [
         dataset["name"].rsplit("_", 1)[-1]
-        for dataset in factories.Dataset.create_batch(51, groups=[{"name": group["name"]}])
+        for dataset in package_factory.create_batch(51, groups=[{"name": group["name"]}])
     ]
     resp = app.get(
         url_for(controller="group", action="read", id=group["name"])
@@ -71,10 +68,10 @@ def test_group_datasets_read(app):
 
 
 @pytest.mark.usefixtures("clean_db", "clean_index")
-def test_group_index(app):
+def test_group_index(app, group_factory):
     all_numbers = [
         group["name"].rsplit("_", 1)[-1]
-        for group in factories.Group.create_batch(22)
+        for group in group_factory.create_batch(22)
     ]
 
     resp = app.get(url_for("group.index"))
@@ -100,10 +97,10 @@ def test_group_index(app):
 
 
 @pytest.mark.usefixtures("clean_db", "clean_index")
-def test_users_index(app):
+def test_users_index(app, user_factory):
     all_numbers = [
         user["name"].rsplit("_", 1)[-1]
-        for user in factories.User.create_batch(21)
+        for user in user_factory.create_batch(21)
     ]
     resp = app.get(url_for("user.index"))
     page = BeautifulSoup(resp.data)

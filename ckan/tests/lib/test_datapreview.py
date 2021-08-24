@@ -6,7 +6,7 @@ from ckan.common import config
 import ckan.plugins as p
 import ckan.lib.datapreview as datapreview
 
-from ckan.tests import helpers, factories
+from ckan.tests import helpers
 
 
 def test_compare_domains():
@@ -140,10 +140,10 @@ class TestDatapreview(object):
         assert view_plugins[1].info()["name"] == "test_datastore_view"
 
     @pytest.mark.ckan_config("ckan.views.default_views", "")
-    def test_add_views_to_dataset_resources(self):
+    def test_add_views_to_dataset_resources(self, package_factory):
 
         # New resources have no views
-        dataset_dict = factories.Dataset(
+        dataset_dict = package_factory(
             resources=[
                 {
                     "url": "http://some.image.png",
@@ -168,10 +168,10 @@ class TestDatapreview(object):
         assert created_views[1]["view_type"] == "image_view"
 
     @pytest.mark.ckan_config("ckan.views.default_views", "")
-    def test_add_views_to_dataset_resources_no_type_provided(self):
+    def test_add_views_to_dataset_resources_no_type_provided(self, package_factory):
 
         # New resources have no views
-        dataset_dict = factories.Dataset(
+        dataset_dict = package_factory(
             resources=[
                 {
                     "url": "http://some.image.png",
@@ -200,9 +200,9 @@ class TestDatapreview(object):
         assert created_views[1]["view_type"] == "image_view"
 
     @pytest.mark.ckan_config("ckan.views.default_views", "")
-    def test_add_views_to_resource(self):
+    def test_add_views_to_resource(self, resource_factory):
 
-        resource_dict = factories.Resource(
+        resource_dict = resource_factory(
             url="http://some.image.png", format="png"
         )
 
@@ -217,9 +217,9 @@ class TestDatapreview(object):
         assert created_views[0]["view_type"] == "image_view"
 
     @pytest.mark.ckan_config("ckan.views.default_views", "")
-    def test_add_views_to_resource_no_type_provided(self):
+    def test_add_views_to_resource_no_type_provided(self, resource_factory):
 
-        resource_dict = factories.Resource(
+        resource_dict = resource_factory(
             url="http://some.image.png", format="png"
         )
 
@@ -236,9 +236,9 @@ class TestDatapreview(object):
         assert created_views[0]["view_type"] == "image_view"
 
     @pytest.mark.ckan_config("ckan.views.default_views", "image_view")
-    def test_default_views_created_on_package_create(self):
+    def test_default_views_created_on_package_create(self, package_factory):
 
-        dataset_dict = factories.Dataset(
+        dataset_dict = package_factory(
             resources=[
                 {
                     "url": "http://some.image.png",
@@ -262,9 +262,9 @@ class TestDatapreview(object):
             assert views_list[0]["view_type"] == "image_view"
 
     @pytest.mark.ckan_config("ckan.views.default_views", "image_view")
-    def test_default_views_created_on_resource_create(self):
+    def test_default_views_created_on_resource_create(self, package_factory):
 
-        dataset_dict = factories.Dataset(
+        dataset_dict = package_factory(
             resources=[{"url": "http://not.for.viewing", "format": "xxx"}]
         )
 

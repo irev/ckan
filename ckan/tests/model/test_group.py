@@ -4,10 +4,9 @@ import pytest
 
 import ckan.model as model
 from ckan.lib.create_test_data import CreateTestData
-from ckan.tests import factories
 
 
-@pytest.mark.usefixtures
+@pytest.mark.usefixtures("clean_db")
 class TestGroup(object):
     def test_basic(self):
         group1 = model.Group(
@@ -22,7 +21,7 @@ class TestGroup(object):
         assert grp.description == u"This is a test group"
         assert grp.packages() == []
 
-    def test_add_packages(self):
+    def test_add_packages(self, package_factory):
         self.russian_group = model.Group(
             name=u"russian",
             title=u"Russian Group",
@@ -30,8 +29,8 @@ class TestGroup(object):
         )
 
         model.Session.add(self.russian_group)
-        pkg1 = factories.Dataset()
-        pkg2 = factories.Dataset()
+        pkg1 = package_factory()
+        pkg2 = package_factory()
 
         model.Session.add(
             model.Member(

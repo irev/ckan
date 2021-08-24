@@ -3,18 +3,16 @@
 import pytest
 import ckan.model as model
 import ckan.lib.search as search
-import ckan.tests.factories as factories
 from ckan.lib.create_test_data import CreateTestData
 
 
-@pytest.mark.usefixtures("clean_db", "clean_index")
 class TestTagQuery(object):
-    def create_test_data(self):
-        factories.Dataset(tags=[{"name": "russian"}, {"name": "tolstoy"}])
-        factories.Dataset(tags=[{"name": "Flexible \u30a1"}])
+    @pytest.fixture(autouse=True)
+    def create_test_data(self, clean_db, clean_index, package_factory):
+        package_factory(tags=[{"name": "russian"}, {"name": "tolstoy"}])
+        package_factory(tags=[{"name": "Flexible \u30a1"}])
 
     def test_good_search_query(self):
-        self.create_test_data()
         result = search.query_for(model.Tag).run(query=u"ru")
         assert result["count"] == 1, result
         assert "russian" in result["results"]
@@ -25,18 +23,15 @@ class TestTagQuery(object):
         assert "tolstoy" in result["results"]
 
     def test_good_search_queries(self):
-        self.create_test_data()
         result = search.query_for(model.Tag).run(query=[u"ru", u"s"])
         assert result["count"] == 1, result
         assert "russian" in result["results"], result
 
     def test_bad_search_query(self):
-        self.create_test_data()
         result = search.query_for(model.Tag).run(query=u"asdf")
         assert result["count"] == 0, result
 
     def test_search_with_capital_letter_in_tagname(self):
-        self.create_test_data()
         """
         Asserts that it doesn't matter if the tagname has capital letters in it.
         """
@@ -44,7 +39,6 @@ class TestTagQuery(object):
         assert u"Flexible \u30a1" in result["results"]
 
     def test_search_with_capital_letter_in_search_query(self):
-        self.create_test_data()
         """
         Asserts that search works with a capital letter in the search query.
         """
@@ -52,7 +46,6 @@ class TestTagQuery(object):
         assert u"Flexible \u30a1" in result["results"]
 
     def test_search_with_unicode_in_search_query(self):
-        self.create_test_data()
         """
         Asserts that search works with a unicode character above \u00ff.
         """
@@ -60,12 +53,10 @@ class TestTagQuery(object):
         assert u"Flexible \u30a1" in result["results"]
 
     def test_search_is_case_insensitive(self):
-        self.create_test_data()
         result = search.query_for(model.Tag).run(query=u"flexible")
         assert u"Flexible \u30a1" in result["results"]
 
     def test_good_search_fields(self):
-        self.create_test_data()
         result = search.query_for(model.Tag).run(fields={"tags": u"ru"})
         assert result["count"] == 1, result
         assert "russian" in result["results"], result
@@ -76,16 +67,15 @@ class TestTagQuery(object):
         assert "tolstoy" in result["results"], result
 
     def test_bad_search_fields(self):
-        self.create_test_data()
         result = search.query_for(model.Tag).run(fields={"tags": u"asdf"})
         assert result["count"] == 0, result
 
 
 @pytest.fixture
-def resources_for_search():
-    pkg1 = factories.Dataset(name="pkg1")
-    pkg2 = factories.Dataset()
-    factories.Resource(
+def resources_for_search(package_factory, resource_factory):
+    pkg1 = package_factory(name="pkg1")
+    pkg2 = package_factory()
+    resource_factory(
         url=TestResourceQuery.ab,
         description="This is site ab.",
         alt_url="alt_1",
@@ -93,7 +83,7 @@ def resources_for_search():
         hash="xyz-123",
         package_id=pkg1["id"],
     )
-    factories.Resource(
+    resource_factory(
         url=TestResourceQuery.cd,
         description="This is site cd.",
         alt_url="alt_2",
@@ -102,19 +92,19 @@ def resources_for_search():
         package_id=pkg1["id"],
     )
 
-    factories.Resource(
+    resource_factory(
         url=TestResourceQuery.cd,
         description="This is site cd.",
         alt_url="alt_1",
         package_id=pkg2["id"],
     )
-    factories.Resource(
+    resource_factory(
         url=TestResourceQuery.ef, description="This is site ef.", package_id=pkg2["id"]
     )
-    factories.Resource(
+    resource_factory(
         url=TestResourceQuery.ef, description="This is site gh.", package_id=pkg2["id"]
     )
-    factories.Resource(
+    resource_factory(
         url=TestResourceQuery.ef, description="This is site ij.", package_id=pkg2["id"]
     )
 
@@ -334,45 +324,45 @@ def test_convert_legacy_params_to_solr():
 
 @pytest.mark.usefixtures("clean_db", "clean_index")
 class TestPackageQuery:
-    def test_all_records_by_shared_notes(self):
-        pkg1 = factories.Dataset(notes="shared")
-        pkg2 = factories.Dataset(notes="shared")
-        pkg3 = factories.Dataset(notes="shared")
+    def test_all_records_by_shared_notes(self, package_factory):
+        pkg1 = package_factory(notes="shared")
+        pkg2 = package_factory(notes="shared")
+        pkg3 = package_factory(notes="shared")
         result = search.query_for(model.Package).run({"q": "shared"})
         assert {pkg1["name"], pkg2["name"], pkg3["name"]} == set(result["results"])
 
-    def test_single_by_name(self):
-        factories.Dataset(name="first")
-        factories.Dataset(name="second")
+    def test_single_by_name(self, package_factory):
+        package_factory(name="first")
+        package_factory(name="second")
 
         result = search.query_for(model.Package).run({"q": u"first"})
         assert result["results"] == ["first"]
 
-    def test_name_multiple_results(self):
-        factories.Dataset(name="first-record")
-        factories.Dataset(name="second-record")
-        factories.Dataset(name="third-dataset")
+    def test_name_multiple_results(self, package_factory):
+        package_factory(name="first-record")
+        package_factory(name="second-record")
+        package_factory(name="third-dataset")
         result = search.query_for(model.Package).run({"q": u"record"})
         assert set(result["results"]) == {"first-record", "second-record"}
 
-    def test_title_token(self):
-        pkg1 = factories.Dataset(title="first record")
-        pkg2 = factories.Dataset(title="second record")
-        factories.Dataset(title="third dataset")
+    def test_title_token(self, package_factory):
+        pkg1 = package_factory(title="first record")
+        pkg2 = package_factory(title="second record")
+        package_factory(title="third dataset")
 
         result = search.query_for(model.Package).run({"q": u"title:record"})
         assert set(result["results"]) == {pkg1["name"], pkg2["name"]}
 
-    def test_not_real_license(self):
-        factories.Dataset()
+    def test_not_real_license(self, package_factory):
+        package_factory()
         result = search.query_for(model.Package).run(
             {"q": u'license:"OKD::Other (PublicsDomain)"'}
         )
         assert result["count"] == 0, result
 
-    def test_quotation(self):
-        pkg1 = factories.Dataset(title="Government Expenditure")
-        pkg2 = factories.Dataset(title="Government Extra Expenditure")
+    def test_quotation(self, package_factory):
+        pkg1 = package_factory(title="Government Expenditure")
+        pkg2 = package_factory(title="Government Extra Expenditure")
         # multiple words quoted
         result = search.query_for(model.Package).run(
             {"q": u'"Government Expenditure"'}
@@ -385,39 +375,39 @@ class TestPackageQuery:
         )
         assert result["results"] == []
 
-    def test_tags_field_split_word(self):
-        pkg1 = factories.Dataset(tags=[{"name": "split todo"}])
+    def test_tags_field_split_word(self, package_factory):
+        pkg1 = package_factory(tags=[{"name": "split todo"}])
         result = search.query_for(model.Package).run({"q": u"todo split"})
         assert result["results"] == [pkg1["name"]]
 
-    def test_tags_field_with_capitals(self):
-        pkg1 = factories.Dataset(tags=[{"name": "capitals"}])
+    def test_tags_field_with_capitals(self, package_factory):
+        pkg1 = package_factory(tags=[{"name": "capitals"}])
         result = search.query_for(model.Package).run({"q": u"CAPITALS"})
         assert result["results"] == [pkg1["name"]]
 
-    def dont_test_tags_field_with_basic_unicode(self):
-        pkg1 = factories.Dataset(tags=[{"name": "greek omega \u03a9"}])
+    def dont_test_tags_field_with_basic_unicode(self, package_factory):
+        pkg1 = package_factory(tags=[{"name": "greek omega \u03a9"}])
         result = search.query_for(model.Package).run(
             {"q": u"greek omega \u03a9"}
         )
         assert result["results"] == [pkg1["name"]]
 
-    def test_tags_token_simple(self):
-        pkg1 = factories.Dataset(tags=[{"name": "country-sweden"}])
+    def test_tags_token_simple(self, package_factory):
+        pkg1 = package_factory(tags=[{"name": "country-sweden"}])
         result = search.query_for(model.Package).run(
             {"q": u"tags:country-sweden"}
         )
         assert result["results"] == [pkg1["name"]]
 
-    def test_tags_token_with_multi_word_tag(self):
-        pkg1 = factories.Dataset(tags=[{"name": "todo split"}])
+    def test_tags_token_with_multi_word_tag(self, package_factory):
+        pkg1 = package_factory(tags=[{"name": "todo split"}])
         result = search.query_for(model.Package).run(
             {"q": u'tags:"todo split"'}
         )
         assert result["results"] == [pkg1["name"]]
 
-    def test_tags_token_multiple(self):
-        pkg1 = factories.Dataset(tags=[{"name": "country-sweden"}, {"name": "format-pdf"}])
+    def test_tags_token_multiple(self, package_factory):
+        pkg1 = package_factory(tags=[{"name": "country-sweden"}, {"name": "format-pdf"}])
         result = search.query_for(model.Package).run(
             {"q": u"tags:country-sweden tags:format-pdf"}
         )
@@ -426,8 +416,8 @@ class TestPackageQuery:
             {"q": u'tags:"todo split" tags:war'}
         )
 
-    def test_tags_token_with_punctuation(self):
-        pkg1 = factories.Dataset(tags=[{"name": "surprise."}])
+    def test_tags_token_with_punctuation(self, package_factory):
+        pkg1 = package_factory(tags=[{"name": "surprise."}])
         result = search.query_for(model.Package).run(
             {"q": u'tags:"surprise."'}
         )

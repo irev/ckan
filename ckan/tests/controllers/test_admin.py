@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 
 import ckan.model as model
 import ckan.tests.helpers as helpers
-import ckan.tests.factories as factories
 from ckan.common import config
 from ckan.lib.helpers import url_for
 from ckan.model.system_info import get_system_info
@@ -18,10 +17,9 @@ def sysadmin_env(sysadmin):
     return env
 
 
-def _reset_config(app):
+def _reset_config(app, sysadmin):
     """Reset config via action"""
-    user = factories.Sysadmin()
-    env = {"REMOTE_USER": six.ensure_str(user["name"])}
+    env = {"REMOTE_USER": six.ensure_str(sysadmin["name"])}
     app.post(url=url_for("admin.reset_config"), extra_environ=env)
 
 

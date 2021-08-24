@@ -1227,16 +1227,16 @@ class TestCurrentPackageList(object):
 
 @pytest.mark.usefixtures("clean_db", "clean_index", "with_request_context")
 class TestPackageAutocomplete(object):
-    def test_package_autocomplete_match_name(self):
-        pkg = factories.Dataset(name="warandpeace")
+    def test_package_autocomplete_match_name(self, package_factory):
+        pkg = package_factory(name="warandpeace")
         result = helpers.call_action("package_autocomplete", q="war")
         assert result[0]["name"] == pkg["name"]
         assert result[0]["title"] == pkg["title"]
         assert result[0]["match_field"] == "name"
         assert result[0]["match_displayed"] == pkg["name"]
 
-    def test_package_autocomplete_match_title(self):
-        pkg = factories.Dataset(title="A Wonderful Story")
+    def test_package_autocomplete_match_title(self, package_factory):
+        pkg = package_factory(title="A Wonderful Story")
         result = helpers.call_action("package_autocomplete", q="won")
         assert result[0]["name"] == pkg["name"]
         assert result[0]["title"] == pkg["title"]
@@ -1891,24 +1891,24 @@ class TestPackageAutocompleteWithDatasetForm(object):
 
 @pytest.mark.usefixtures("clean_db", "clean_index", "with_request_context")
 class TestUserAutocomplete(object):
-    def test_autocomplete(self):
-        factories.Sysadmin(name="autocompletesysadmin")
-        factories.User(name="autocompleteuser")
+    def test_autocomplete(self, sysadmin_factory, user_factory):
+        sysadmin_factory(name="autocompletesysadmin")
+        user_factory(name="autocompleteuser")
         result = helpers.call_action("user_autocomplete", q="sysadmin")
         assert len(result) == 1
         user = result.pop()
         assert set(user.keys()) == set(["id", "name", "fullname"])
         assert user["name"] == "autocompletesysadmin"
 
-    def test_autocomplete_multiple(self):
-        factories.Sysadmin(name="autocompletesysadmin")
-        factories.User(name="autocompleteuser")
+    def test_autocomplete_multiple(self, sysadmin_factory, user_factory):
+        sysadmin_factory(name="autocompletesysadmin")
+        user_factory(name="autocompleteuser")
         result = helpers.call_action("user_autocomplete", q="compl")
         assert len(result) == 2
 
-    def test_autocomplete_limit(self):
-        factories.Sysadmin(name="autocompletesysadmin")
-        factories.User(name="autocompleteuser")
+    def test_autocomplete_limit(self, sysadmin_factory, user_factory):
+        sysadmin_factory(name="autocompletesysadmin")
+        user_factory(name="autocompleteuser")
         result = helpers.call_action("user_autocomplete", q="compl", limit=1)
         assert len(result) == 1
 
@@ -1919,10 +1919,10 @@ class TestFormatAutocomplete:
         with pytest.raises(logic.ValidationError):
             helpers.call_action("format_autocomplete")
 
-    def test_autocomplete(self):
+    def test_autocomplete(self, resource_factory):
         result = helpers.call_action("format_autocomplete", q="cs")
         assert result == []
-        factories.Resource(format="CSV")
+        resource_factory(format="CSV")
         result = helpers.call_action("format_autocomplete", q="cs")
         assert result == ["csv"]
 
@@ -4668,8 +4668,8 @@ class TestResourceSearch(object):
         result = helpers.call_action('resource_search', query="size:10")
         assert result['count'] == 1
 
-    def test_resource_search_across_multiple_fields(self):
-        factories.Resource(description="indexed resource", format="json")
+    def test_resource_search_across_multiple_fields(self, resource_factory):
+        resource_factory(description="indexed resource", format="json")
         result = helpers.call_action(
             "resource_search", query=["description:index", "format:json"]
         )
@@ -4678,8 +4678,8 @@ class TestResourceSearch(object):
         assert "index" in resource["description"].lower()
         assert "json" in resource["format"].lower()
 
-    def test_resource_search_test_percentage_is_escaped(self):
-        factories.Resource(description="indexed resource", format="json")
+    def test_resource_search_test_percentage_is_escaped(self, resource_factory):
+        resource_factory(description="indexed resource", format="json")
         result = helpers.call_action(
             "resource_search", query="description:index%"
         )

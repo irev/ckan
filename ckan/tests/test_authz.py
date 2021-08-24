@@ -6,7 +6,7 @@ import pytest
 
 from ckan import authz as auth, model, logic
 
-from ckan.tests import factories, helpers
+from ckan.tests import helpers
 
 
 _check = auth.check_config_permission
@@ -84,12 +84,11 @@ def test_no_attributes_set_on_imported_auth_members():
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestAuthOrgHierarchy(object):
-    def test_parent_admin_auth(self):
-        user = factories.User()
-        parent = factories.Organization(
+    def test_parent_admin_auth(self, organization_factory, user):
+        parent = organization_factory(
             users=[{"capacity": "admin", "name": user["name"]}]
         )
-        child = factories.Organization()
+        child = organization_factory()
         helpers.call_action(
             "member_create",
             id=child["id"],
@@ -108,10 +107,9 @@ class TestAuthOrgHierarchy(object):
         helpers.call_auth("package_create", context, owner_org=parent["id"])
         helpers.call_auth("package_create", context, owner_org=child["id"])
 
-    def test_child_admin_auth(self):
-        user = factories.User()
-        parent = factories.Organization()
-        child = factories.Organization(
+    def test_child_admin_auth(self, organization_factory, user):
+        parent = organization_factory()
+        child = organization_factory(
             users=[{"capacity": "admin", "name": user["name"]}]
         )
         helpers.call_action(
@@ -136,12 +134,11 @@ class TestAuthOrgHierarchy(object):
             )
         helpers.call_auth("package_create", context, owner_org=child["id"])
 
-    def test_parent_editor_auth(self):
-        user = factories.User()
-        parent = factories.Organization(
+    def test_parent_editor_auth(self, organization_factory, user):
+        parent = organization_factory(
             users=[{"capacity": "editor", "name": user["name"]}]
         )
-        child = factories.Organization()
+        child = organization_factory()
         helpers.call_action(
             "member_create",
             id=child["id"],
@@ -163,10 +160,9 @@ class TestAuthOrgHierarchy(object):
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth("package_create", context, owner_org=child["id"])
 
-    def test_child_editor_auth(self):
-        user = factories.User()
-        parent = factories.Organization()
-        child = factories.Organization(
+    def test_child_editor_auth(self, organization_factory):
+        parent = organization_factory()
+        child = organization_factory(
             users=[{"capacity": "editor", "name": user["name"]}]
         )
         helpers.call_action(

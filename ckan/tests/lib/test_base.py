@@ -3,8 +3,6 @@
 import six
 import pytest
 
-import ckan.tests.factories as factories
-
 
 @pytest.mark.ckan_config("debug", True)
 def test_comment_present_if_debug_true(app):
@@ -25,18 +23,16 @@ def test_apikey_missing(app):
 
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
-def test_apikey_in_authorization_header(app):
-    user = factories.Sysadmin()
-    request_headers = {"Authorization": str(user["apikey"])}
+def test_apikey_in_authorization_header(app, sysadmin):
+    request_headers = {"Authorization": str(sysadmin["apikey"])}
 
     app.get("/dataset/new", headers=request_headers)
 
 
 @pytest.mark.usefixtures("clean_db", "with_request_context")
-def test_apikey_in_x_ckan_header(app):
-    user = factories.Sysadmin()
+def test_apikey_in_x_ckan_header(app, sysadmin):
     # non-standard header name is defined in test-core.ini
-    request_headers = {"X-Non-Standard-CKAN-API-Key": str(user["apikey"])}
+    request_headers = {"X-Non-Standard-CKAN-API-Key": str(sysadmin["apikey"])}
 
     app.get("/dataset/new", headers=request_headers)
 
@@ -461,8 +457,7 @@ def test_cache_control_when_cache_is_not_set_in_config(app):
 
 
 @pytest.mark.ckan_config('ckan.cache_enabled', 'true')
-def test_cache_control_while_logged_in(app):
-    user = factories.User()
+def test_cache_control_while_logged_in(app, user):
     env = {'REMOTE_USER': user['name'].encode('ascii')}
     request_headers = {}
     response = app.get('/', headers=request_headers, extra_environ=env)

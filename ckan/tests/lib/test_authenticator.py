@@ -1,15 +1,14 @@
 # encoding: utf-8
 
 import pytest
-import ckan.tests.factories as factories
 from ckan.lib.authenticator import UsernamePasswordAuthenticator
 
 
 class TestUsernamePasswordAuthenticator(object):
     @pytest.mark.usefixtures("clean_db")
-    def test_succeeds_if_login_and_password_are_correct(self):
+    def test_succeeds_if_login_and_password_are_correct(self, user_factory):
         password = "somepass"
-        user = factories.User(password=password)
+        user = user_factory(password=password)
         identity = {"login": user["name"], "password": password}
         assert (
             UsernamePasswordAuthenticator().authenticate({}, identity)
@@ -17,26 +16,25 @@ class TestUsernamePasswordAuthenticator(object):
         )
 
     @pytest.mark.usefixtures("clean_db")
-    def test_fails_if_user_is_deleted(self):
+    def test_fails_if_user_is_deleted(self, user_factory):
         password = "somepass"
-        user = factories.User(password=password, state="deleted")
+        user = user_factory(password=password, state="deleted")
         identity = {"login": user["name"], "password": password}
         assert (
             UsernamePasswordAuthenticator().authenticate({}, identity) is None
         )
 
     @pytest.mark.usefixtures("clean_db")
-    def test_fails_if_user_is_pending(self):
+    def test_fails_if_user_is_pending(self, user_factory):
         password = "somepass"
-        user = factories.User(password=password, state="pending")
+        user = user_factory(password=password, state="pending")
         identity = {"login": user["name"], "password": password}
         assert (
             UsernamePasswordAuthenticator().authenticate({}, identity) is None
         )
 
     @pytest.mark.usefixtures("clean_db")
-    def test_fails_if_password_is_wrong(self):
-        user = factories.User()
+    def test_fails_if_password_is_wrong(self, user):
         identity = {"login": user["name"], "password": "wrong-password"}
         assert (
             UsernamePasswordAuthenticator().authenticate({}, identity) is None

@@ -31,13 +31,6 @@ def _get_location(res):
     return urlparse(location)._replace(scheme='', netloc='').geturl()
 
 
-def _get_package_new_page(app):
-    user = factories.UserFactory()
-    env = {"REMOTE_USER": six.ensure_str(user["name"])}
-    response = app.get(url=url_for("dataset.new"), extra_environ=env)
-    return env, response
-
-
 @pytest.mark.usefixtures("clean_db", "with_request_context")
 class TestPackageNew(object):
 

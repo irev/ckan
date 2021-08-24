@@ -7,7 +7,6 @@ import ckan.plugins.toolkit as tk
 import ckan.lib.mailer as mailer
 import ckan.model as model
 
-from ckan.tests import factories
 from ckan.lib.helpers import url_for
 
 
@@ -42,14 +41,13 @@ def test_request_signals(app):
 
 @pytest.mark.usefixtures(u"clean_db", u"with_request_context")
 class TestUserSignals:
-    def test_user_created(self, app):
+    def test_user_created(self, app, user_factory):
         created = mock.Mock()
         with tk.signals.user_created.connected_to(created):
-            user = factories.User()
+            user = user_factory()
             assert created.call_count == 1
 
-    def test_password_reset(self, app, monkeypatch):
-        user = factories.User()
+    def test_password_reset(self, app, monkeypatch, user):
         request_reset = mock.Mock()
         monkeypatch.setattr(
             mailer, u"send_reset_link", mailer.create_reset_key
@@ -76,8 +74,8 @@ class TestUserSignals:
             )
             assert perform_reset.call_count == 1
 
-    def test_login(self, app):
-        user = factories.User(password=u"correct123")
+    def test_login(self, app, user_factory):
+        user = user_factory(password=u"correct123")
         url = u"/login_generic"
         success = mock.Mock()
         fail = mock.Mock()

@@ -2,14 +2,9 @@
 
 import csv
 import datetime
-from io import StringIO
 import pytest
 import ckan.lib.helpers as h
-import ckan.logic as logic
-import ckan.model as model
 import ckan.plugins as plugins
-import ckan.lib.dictization.model_dictize as model_dictize
-import ckan.tests.factories as factories
 from ckan.tests.helpers import call_action
 
 

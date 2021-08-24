@@ -631,7 +631,7 @@ class TestActivity(object):
         # hope that organization_delete was the same as organization_update
         # state=deleted but they are not...
 
-    def test_delete_org_by_updating_state(self, app, organization_factory):
+    def test_delete_org_by_updating_state(self, app, organization_factory, user):
         org = organization_factory(user=user)
         self._clear_activities()
         org["state"] = "deleted"

@@ -8,6 +8,7 @@ import responses
 import sqlalchemy.orm as orm
 
 import ckan.plugins as p
+import ckan.tests.helpers as helpers
 import ckanext.datapusher.interfaces as interfaces
 import ckanext.datastore.backend.postgres as db
 
@@ -76,7 +77,7 @@ class TestInterace(object):
                 },
             )
 
-    def test_after_upload_called(self, resource_factory):
+    def test_after_upload_called(self, resource_factory, package):
         resource = resource_factory(package_id=package["id"])
 
         # Push data directly to the DataStore for the resource to be marked as

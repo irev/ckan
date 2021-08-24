@@ -677,14 +677,14 @@ class TestPackageRead(object):
             assert "Test Dataset" in response.body
             assert "Just another test dataset" in response.body
 
-    def test_anonymous_users_cannot_read_private_datasets(self, app, package_factory, organization_factory):
+    def test_anonymous_users_cannot_read_private_datasets(self, app, package_factory, organization):
         dataset = package_factory(owner_org=organization["id"], private=True)
         response = app.get(
             url_for("dataset.read", id=dataset["name"]), status=404
         )
         assert 404 == response.status_code
 
-    def test_user_not_in_organization_cannot_read_private_datasets(self, app, user, package_factory, organization_factory):
+    def test_user_not_in_organization_cannot_read_private_datasets(self, app, user, package_factory, organization):
         dataset = package_factory(owner_org=organization["id"], private=True)
         response = app.get(
             url_for("dataset.read", id=dataset["name"]),
@@ -1044,7 +1044,7 @@ class TestResourceNew(object):
             status=403,
         )
 
-    def test_anonymous_users_cannot_add_new_resource(self, app, organization_factory, package_factory):
+    def test_anonymous_users_cannot_add_new_resource(self, app, organization, package_factory):
         dataset = package_factory(owner_org=organization["id"])
 
         response = app.get(
@@ -1788,7 +1788,7 @@ class TestPackageFollow(object):
         """Pass an id for a package that doesn't exist"""
 
 
-        env = {"REMOTE_USER": six.ensure_str(user_one["name"])}
+        env = {"REMOTE_USER": six.ensure_str(user["name"])}
         follow_url = url_for("dataset.follow", id="not-here")
         response = app.post(follow_url, extra_environ=env)
 
@@ -1796,7 +1796,7 @@ class TestPackageFollow(object):
 
     def test_package_unfollow(self, app, user, package):
 
-        env = {"REMOTE_USER": six.ensure_str(user_one["name"])}
+        env = {"REMOTE_USER": six.ensure_str(user["name"])}
         follow_url = url_for("dataset.follow", id=package["id"])
         app.post(follow_url, extra_environ=env)
 
@@ -1813,7 +1813,7 @@ class TestPackageFollow(object):
     def test_package_unfollow_not_following(self, app, user, package):
         """Unfollow a package not currently following"""
 
-        env = {"REMOTE_USER": six.ensure_str(user_one["name"])}
+        env = {"REMOTE_USER": six.ensure_str(user["name"])}
         unfollow_url = url_for("dataset.unfollow", id=package["id"])
         unfollow_response = app.post(
             unfollow_url, extra_environ=env
@@ -1828,7 +1828,7 @@ class TestPackageFollow(object):
         """Unfollow a package that doesn't exist."""
 
 
-        env = {"REMOTE_USER": six.ensure_str(user_one["name"])}
+        env = {"REMOTE_USER": six.ensure_str(user["name"])}
         unfollow_url = url_for("dataset.unfollow", id="not-here")
         unfollow_response = app.post(
             unfollow_url, extra_environ=env

@@ -160,7 +160,7 @@ class TestAuthOrgHierarchy(object):
         with pytest.raises(logic.NotAuthorized):
             helpers.call_auth("package_create", context, owner_org=child["id"])
 
-    def test_child_editor_auth(self, organization_factory):
+    def test_child_editor_auth(self, organization_factory, user):
         parent = organization_factory()
         child = organization_factory(
             users=[{"capacity": "editor", "name": user["name"]}]
